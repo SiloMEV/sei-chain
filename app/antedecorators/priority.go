@@ -1,59 +1,55 @@
 package antedecorators
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"math"
 
+	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	oracletypes "github.com/sei-protocol/sei-chain/x/oracle/types"
+	"github.com/sei-protocol/sei-chain/x/mev/keeper"
 )
 
 const (
+	MaxPriority          = math.MaxInt64
+	SystemPriority       = math.MaxInt64 - 1
+	MEVBundlePriority    = math.MaxInt64 - 50
 	OraclePriority       = math.MaxInt64 - 100
-	EVMAssociatePriority = math.MaxInt64 - 101
-	// This is the max priority a non oracle or associate tx can take
-	MaxPriority = math.MaxInt64 - 1000
+	EVMAssociatePriority = math.MaxInt64 - 500
+	StandardPriority     = math.MaxInt64 - 1000
 )
 
-type PriorityDecorator struct{}
-
-func NewPriorityDecorator() PriorityDecorator {
-	return PriorityDecorator{}
+type PriorityDecorator struct {
+	mevKeeper keeper.Keeper
+	txConfig  client.TxConfig
 }
 
-func intMin(a, b int64) int64 {
-	if a < b {
-		return a
+func NewPriorityDecorator(mk keeper.Keeper, txConfig client.TxConfig) PriorityDecorator {
+	return PriorityDecorator{
+		mevKeeper: mk,
+		txConfig:  txConfig,
 	}
-	return b
 }
 
-// Assigns higher priority to certain types of transactions including oracle
 func (pd PriorityDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	// Cap priority
-	// Use higher priorities for tiers including oracle tx's
-	priority := intMin(ctx.Priority(), MaxPriority)
-
-	if isOracleTx(tx) {
-		priority = OraclePriority
+	// Get tx hash
+	txBytes, err := pd.txConfig.TxEncoder()(tx)
+	if err != nil {
+		return ctx, err
 	}
 
-	newCtx := ctx.WithPriority(priority)
+	hash := sha256.Sum256(txBytes)
+	txHash := hex.EncodeToString(hash[:])
 
-	return next(newCtx, tx, simulate)
-}
-
-func isOracleTx(tx sdk.Tx) bool {
-	if len(tx.GetMsgs()) == 0 {
-		// empty TX isn't oracle
-		return false
-	}
-	for _, msg := range tx.GetMsgs() {
-		switch msg.(type) {
-		case *oracletypes.MsgAggregateExchangeRateVote:
-			continue
-		default:
-			return false
+	// Check if tx is part of a bundle
+	bundleID := pd.mevKeeper.GetBundleIDForTx(ctx, txHash)
+	if bundleID != "" {
+		if _, found := pd.mevKeeper.GetBundle(ctx, bundleID); found {
+			ctx = ctx.WithPriority(MEVBundlePriority)
+			return next(ctx, tx, simulate)
 		}
 	}
-	return true
+
+	ctx = ctx.WithPriority(StandardPriority)
+	return next(ctx, tx, simulate)
 }
