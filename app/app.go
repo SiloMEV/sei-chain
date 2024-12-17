@@ -156,6 +156,13 @@ import (
 	// unnamed import of statik for openapi/swagger UI support
 	_ "github.com/sei-protocol/sei-chain/docs/swagger"
 	ssconfig "github.com/sei-protocol/sei-db/config"
+
+	"github.com/cosmos/cosmos-sdk/store/types"
+	transfertypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
+	epochtypes "github.com/sei-protocol/sei-chain/x/epoch/types"
+	mev "github.com/sei-protocol/sei-chain/x/mev"
+	mevkeeper "github.com/sei-protocol/sei-chain/x/mev/keeper"
+	mevtypes "github.com/sei-protocol/sei-chain/x/mev/types"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -231,8 +238,7 @@ var (
 		oracletypes.ModuleName: true,
 	}
 
-	// WasmProposalsEnabled enables all x/wasm proposals when it's value is "true"
-	// and EnableSpecificWasmProposals is empty. Otherwise, all x/wasm proposals
+	// WasmProposalsEnabled enables all x/wasm proposals when it's value is "true" and EnableSpecificWasmProposals is empty. Otherwise, all x/wasm proposals
 	// are disabled.
 	// Used as a flag to turn it on and off
 	WasmProposalsEnabled = "true"
@@ -330,6 +336,7 @@ type App struct {
 	WasmKeeper          wasm.Keeper
 	OracleKeeper        oraclekeeper.Keeper
 	EvmKeeper           evmkeeper.Keeper
+	MevKeeper           mevkeeper.Keeper
 
 	// make scoped keepers public for test purposes
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
@@ -370,6 +377,8 @@ type App struct {
 
 	stateStore   seidb.StateStore
 	receiptStore seidb.StateStore
+
+	txConfig client.TxConfig
 }
 
 type AppOption func(*App)
@@ -412,10 +421,11 @@ func New(
 		evmtypes.StoreKey, wasm.StoreKey,
 		epochmoduletypes.StoreKey,
 		tokenfactorytypes.StoreKey,
+		mevtypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientStoreKey)
-	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey, banktypes.DeferredCacheStoreKey, oracletypes.MemStoreKey)
+	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey, banktypes.DeferredCacheStoreKey, oracletypes.MemStoreKey, mevtypes.MemStoreKey)
 
 	app := &App{
 		BaseApp:           bApp,
@@ -431,6 +441,7 @@ func New(
 		metricCounter:     &map[string]float32{},
 		encodingConfig:    encodingConfig,
 		stateStore:        stateStore,
+		txConfig:          encodingConfig.TxConfig,
 	}
 
 	for _, option := range appOptions {
@@ -484,6 +495,46 @@ func New(
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
 	app.StakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(), app.SlashingKeeper.Hooks()),
+	)
+
+	// Initialize MEV keeper
+	app.MevKeeper = mevkeeper.NewKeeper(
+		appCodec,
+		keys[mevtypes.StoreKey],
+		memKeys[mevtypes.MemStoreKey],
+		app.txConfig.TxDecoder(),
+	)
+
+	// Add MEV module to the module manager
+	app.mm = module.NewManager(
+		genutil.NewAppModule(
+			app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
+			encodingConfig.TxConfig,
+		),
+		aclmodule.NewAppModule(appCodec, app.AccessControlKeeper),
+		auth.NewAppModule(appCodec, app.AccountKeeper, nil),
+		vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
+		bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
+		capability.NewAppModule(appCodec, *app.CapabilityKeeper),
+		feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
+		crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
+		gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
+		mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
+		slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+		distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
+		upgrade.NewAppModule(app.UpgradeKeeper),
+		evidence.NewAppModule(app.EvidenceKeeper),
+		ibc.NewAppModule(app.IBCKeeper),
+		params.NewAppModule(app.ParamsKeeper),
+		oraclemodule.NewAppModule(appCodec, app.OracleKeeper, app.AccountKeeper, app.BankKeeper),
+		wasm.NewAppModule(appCodec, &app.WasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
+		evm.NewAppModule(appCodec, &app.EvmKeeper),
+		transferModule,
+		epochModule,
+		tokenfactorymodule.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
+		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
+		mev.NewAppModule(app.MevKeeper),
 	)
 
 	// ... other modules keepers
@@ -746,7 +797,7 @@ func New(
 		epochModule,
 		tokenfactorymodule.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
-		// this line is used by starport scaffolding # stargate/app/appModule
+		mev.NewAppModule(app.MevKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -778,6 +829,9 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		acltypes.ModuleName,
+		mevtypes.ModuleName,
+		transfertypes.ModuleName,
+		epochtypes.ModuleName,
 	)
 
 	app.mm.SetOrderMidBlockers(
@@ -809,6 +863,9 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		acltypes.ModuleName,
+		mevtypes.ModuleName,
+		transfertypes.ModuleName,
+		epochtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -841,6 +898,9 @@ func New(
 		wasm.ModuleName,
 		evmtypes.ModuleName,
 		acltypes.ModuleName,
+		mevtypes.ModuleName,
+		transfertypes.ModuleName,
+		epochtypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	)
 

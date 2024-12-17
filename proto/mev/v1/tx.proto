@@ -1,0 +1,27 @@
+syntax = "proto3";
+package seiprotocol.seichain.mev;
+
+option go_package = "github.com/sei-protocol/sei-chain/x/mev/types";
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/v1beta1/coin.proto";
+
+// Msg defines the MEV Msg service
+service Msg {
+  // SubmitBundle defines a method for submitting a bundle of transactions
+  rpc SubmitBundle(MsgSubmitBundle) returns (MsgSubmitBundleResponse);
+}
+
+// MsgSubmitBundle represents a message to submit a bundle of transactions
+message MsgSubmitBundle {
+  string sender = 1;
+  repeated bytes transactions = 2;
+  int64 block_height = 3;
+  cosmos.base.v1beta1.Coin bundle_fee = 4 [(gogoproto.nullable) = false];
+}
+
+// MsgSubmitBundleResponse defines the response structure for executing a
+// MsgSubmitBundle message
+message MsgSubmitBundleResponse {
+  string bundle_id = 1;
+} 
