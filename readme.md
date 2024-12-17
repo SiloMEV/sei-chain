@@ -1,4 +1,4 @@
-# Sei
+# Sei with MEV module!
 
 ![Banner!](assets/SeiLogo.png)
 
