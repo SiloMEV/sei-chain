@@ -1,4 +1,4 @@
-# Sei with MEV by MEVVY!
+# Sei with MEV by MEVVY! Step 2!
 
 ![Banner!](assets/SeiLogo.png)
 
