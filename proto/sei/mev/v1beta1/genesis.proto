@@ -1,0 +1,15 @@
+syntax = "proto3";
+package sei.mev.v1beta1;
+
+import "gogoproto/gogo.proto";
+import "sei/mev/v1beta1/params.proto";
+
+option go_package = "github.com/sei-protocol/sei-chain/x/mev/types";
+
+// GenesisState defines the mev module's genesis state.
+message GenesisState {
+  // params defines all the parameters of the module.
+  Params params = 1 [(gogoproto.nullable) = false];
+  // bundles defines the list of bundles at genesis
+  repeated Bundle bundles = 2 [(gogoproto.nullable) = false];
+} 

@@ -1,12 +1,15 @@
 package mev
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
+
+	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -16,7 +19,6 @@ import (
 	"github.com/sei-protocol/sei-chain/x/mev/client/cli"
 	"github.com/sei-protocol/sei-chain/x/mev/keeper"
 	"github.com/sei-protocol/sei-chain/x/mev/types"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -25,13 +27,7 @@ var (
 )
 
 // AppModuleBasic defines the basic application module used by the mev module.
-type AppModuleBasic struct {
-	cdc codec.Codec
-}
-
-func NewAppModuleBasic(cdc codec.Codec) AppModuleBasic {
-	return AppModuleBasic{cdc: cdc}
-}
+type AppModuleBasic struct{}
 
 // Name returns the mev module's name.
 func (AppModuleBasic) Name() string {
@@ -39,12 +35,17 @@ func (AppModuleBasic) Name() string {
 }
 
 // RegisterLegacyAminoCodec registers the mev module's types on the given LegacyAmino codec.
-func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
+func (AppModuleBasic) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
+	types.RegisterCodec(cdc)
+}
 
 // RegisterInterfaces registers the module's interface types
-func (b AppModuleBasic) RegisterInterfaces(_ codectypes.InterfaceRegistry) {}
+func (b AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
+	types.RegisterInterfaces(registry)
+}
 
-// DefaultGenesis returns default genesis state as raw bytes for the mev module.
+// DefaultGenesis returns default genesis state as raw bytes for the mev
+// module.
 func (AppModuleBasic) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(types.DefaultGenesis())
 }
@@ -55,18 +56,8 @@ func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncod
 	if err := cdc.UnmarshalJSON(bz, &data); err != nil {
 		return fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err)
 	}
-	return nil
-}
 
-// ValidateGenesisStream performs genesis state validation for the mev module in a streaming fashion.
-func (am AppModuleBasic) ValidateGenesisStream(cdc codec.JSONCodec, config client.TxEncodingConfig, genesisCh <-chan json.RawMessage) error {
-	for genesis := range genesisCh {
-		err := am.ValidateGenesis(cdc, config, genesis)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return types.ValidateGenesis(data)
 }
 
 // RegisterRESTRoutes registers the REST routes for the mev module.
@@ -74,12 +65,14 @@ func (AppModuleBasic) RegisterRESTRoutes(clientCtx client.Context, rtr *mux.Rout
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the mev module.
 func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
-	// Register your routes here if needed
+	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
+		panic(err)
+	}
 }
 
 // GetTxCmd returns the root tx command for the mev module.
 func (AppModuleBasic) GetTxCmd() *cobra.Command {
-	return nil
+	return cli.GetTxCmd()
 }
 
 // GetQueryCmd returns the root query command for the mev module.
@@ -87,15 +80,28 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 	return cli.GetQueryCmd()
 }
 
+// RegisterCodec registers concrete types on the Amino codec
+func (AppModuleBasic) RegisterCodec(cdc *codec.LegacyAmino) {
+	types.RegisterCodec(cdc)
+}
+
+// AppModule implements an application module for the mev module.
 type AppModule struct {
 	AppModuleBasic
 	keeper keeper.Keeper
+	ak     types.AccountKeeper
 }
 
-func NewAppModule(cdc codec.Codec, k keeper.Keeper) AppModule {
+// NewAppModule creates a new AppModule object
+func NewAppModule(
+	cdc codec.Codec,
+	keeper keeper.Keeper,
+	ak types.AccountKeeper,
+) AppModule {
 	return AppModule{
-		AppModuleBasic: NewAppModuleBasic(cdc),
-		keeper:         k,
+		AppModuleBasic: AppModuleBasic{},
+		keeper:         keeper,
+		ak:             ak,
 	}
 }
 
@@ -109,7 +115,7 @@ func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
 // Route returns the message routing key for the mev module.
 func (am AppModule) Route() sdk.Route {
-	return sdk.NewRoute(types.RouterKey, nil)
+	return sdk.NewRoute(types.RouterKey, NewHandler(am.keeper))
 }
 
 // QuerierRoute returns the mev module's querier route name.
@@ -119,47 +125,45 @@ func (AppModule) QuerierRoute() string {
 
 // LegacyQuerierHandler returns the mev module sdk.Querier.
 func (am AppModule) LegacyQuerierHandler(legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
-	return nil
+	return keeper.NewQuerier(am.keeper, legacyQuerierCdc)
+}
+
+// RegisterServices registers module services.
+func (am AppModule) RegisterServices(cfg module.Configurator) {
+	types.RegisterMsgServer(cfg.MsgServer(), keeper.NewMsgServerImpl(am.keeper))
+	types.RegisterQueryServer(cfg.QueryServer(), am.keeper)
+
+	// Register migrations if any
+	// m := keeper.NewMigrator(am.keeper)
+	// if err := cfg.RegisterMigration(types.ModuleName, 1, m.Migrate1to2); err != nil {
+	//     panic(fmt.Sprintf("failed to migrate x/%s from version 1 to 2: %v", types.ModuleName, err))
+	// }
 }
 
 // InitGenesis performs genesis initialization for the mev module.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) []abci.ValidatorUpdate {
 	var genesisState types.GenesisState
 	cdc.MustUnmarshalJSON(data, &genesisState)
+	InitGenesis(ctx, am.keeper, genesisState)
 	return []abci.ValidatorUpdate{}
 }
 
 // ExportGenesis returns the exported genesis state as raw bytes for the mev module.
 func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
-	return cdc.MustMarshalJSON(types.DefaultGenesis())
-}
-
-// ExportGenesisStream returns the mev module's exported genesis state as raw JSON bytes in a streaming fashion.
-func (am AppModule) ExportGenesisStream(ctx sdk.Context, cdc codec.JSONCodec) <-chan json.RawMessage {
-	ch := make(chan json.RawMessage)
-	go func() {
-		ch <- am.ExportGenesis(ctx, cdc)
-		close(ch)
-	}()
-	return ch
+	gs := ExportGenesis(ctx, am.keeper)
+	return cdc.MustMarshalJSON(gs)
 }
 
 // ConsensusVersion implements AppModule/ConsensusVersion.
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
 // BeginBlock returns the begin blocker for the mev module.
-func (AppModule) BeginBlock(_ sdk.Context, _ abci.RequestBeginBlock) {}
-
-// EndBlock returns the end blocker for the mev module.
-func (am AppModule) EndBlock(_ sdk.Context, _ abci.RequestEndBlock) []abci.ValidatorUpdate {
-	return []abci.ValidatorUpdate{}
+func (am AppModule) BeginBlock(ctx sdk.Context, req abci.RequestBeginBlock) {
+	BeginBlocker(ctx, am.keeper)
 }
 
-// RegisterServices registers module services.
-func (am AppModule) RegisterServices(cfg module.Configurator) {
-	// Register services here when needed
-	// For now, we'll just register a basic migration like other modules
-	_ = cfg.RegisterMigration(types.ModuleName, 1, func(ctx sdk.Context) error {
-		return nil
-	})
+// EndBlock returns the end blocker for the mev module.
+func (am AppModule) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) []abci.ValidatorUpdate {
+	EndBlocker(ctx, am.keeper)
+	return []abci.ValidatorUpdate{}
 }
