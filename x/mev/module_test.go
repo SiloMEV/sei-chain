@@ -1,6 +1,7 @@
 package mev_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,6 +29,42 @@ func TestBasicModule(t *testing.T) {
 	// Test BeginBlock and EndBlock
 	module.BeginBlock(ctx, abci.RequestBeginBlock{})
 	require.Equal(t, []abci.ValidatorUpdate{}, module.EndBlock(ctx, abci.RequestEndBlock{}))
+}
+
+func TestQueryPendingBundles(t *testing.T) {
+	app := app.Setup(false, false)
+	// ctx := app.BaseApp.NewContext(false, tmproto.Header{})
+
+	// Query pending bundles
+	res, err := app.MevKeeper.PendingBundles(context.Background(), &types.QueryPendingBundlesRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, 0, len(res.Bundles))
+}
+
+func TestSubmitBundle(t *testing.T) {
+	app := app.Setup(false, false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
+
+	// Create a test bundle
+	bundle := types.Bundle{
+		Sender:    []byte("test_sender"),
+		Txs:       []string{"tx1", "tx2"},
+		BlockNum:  100,
+		Timestamp: ctx.BlockTime().Unix(),
+	}
+
+	msg := types.NewMsgSubmitBundle(bundle)
+	res, err := app.MevKeeper.SubmitBundle(ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.True(t, res.Success)
+
+	// Verify bundle was stored
+	queryRes, err := app.MevKeeper.PendingBundles(context.Background(), &types.QueryPendingBundlesRequest{})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(queryRes.Bundles))
+	require.Equal(t, bundle.Txs, queryRes.Bundles[0].Txs)
 }
 
 func TestModuleRegistration(t *testing.T) {
