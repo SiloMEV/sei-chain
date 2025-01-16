@@ -27,7 +27,8 @@ func (md MEVDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, nex
 			if bundledTx == string(currentTxBytes) {
 				// Set descending priorities for bundle txs to maintain order
 				bundlePriority := antedecorators.MEVBundlePriority - int64(i)
-				return ctx.WithPriority(bundlePriority), next(ctx, tx, simulate)
+				newCtx := ctx.WithPriority(bundlePriority)
+				return next(newCtx, tx, simulate)
 			}
 		}
 	}
