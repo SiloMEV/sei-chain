@@ -1,20 +1,14 @@
 package types
 
-import (
-	"github.com/gogo/protobuf/proto"
-)
-
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
-	return &GenesisState{}
+	return &GenesisState{
+		Params:  DefaultParams(),
+		Bundles: []Bundle{},
+	}
 }
 
-// GenesisState defines the mev module's genesis state
-type GenesisState struct {
-	// Add your genesis state fields here
+// Validate performs basic genesis state validation
+func (gs GenesisState) Validate() error {
+	return gs.Params.Validate()
 }
-
-// implement proto.Message interface
-func (m *GenesisState) Reset()         { *m = GenesisState{} }
-func (m *GenesisState) String() string { return proto.CompactTextString(m) }
-func (*GenesisState) ProtoMessage()    {}

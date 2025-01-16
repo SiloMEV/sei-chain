@@ -1,0 +1,15 @@
+- name: Test MEV Module
+  steps:
+    - name: Submit Bundle
+      cmd: |
+        printf "12345678\n" | seid tx mev submit-bundle '["tx1","tx2"]' 100 \
+          --from node_admin --chain-id sei --fees 2000usei -b block -y
+      expected:
+        code: 0
+
+    - name: Query Pending Bundles
+      cmd: seid query mev pending-bundles
+      expected:
+        contains: 
+          - "tx1"
+          - "tx2" 
