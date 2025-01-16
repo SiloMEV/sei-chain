@@ -927,6 +927,7 @@ func New(
 			EVMKeeper:           &app.EvmKeeper,
 			TracingInfo:         app.GetBaseApp().TracingInfo,
 			AccessControlKeeper: &app.AccessControlKeeper,
+			MEVKeeper          *mevkeeper.Keeper  // Add this line
 			LatestCtxGetter: func() sdk.Context {
 				return app.GetCheckCtx()
 			},

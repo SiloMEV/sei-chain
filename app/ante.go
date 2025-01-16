@@ -33,6 +33,7 @@ type HandlerOptions struct {
 	EVMKeeper           *evmkeeper.Keeper
 	TXCounterStoreKey   sdk.StoreKey
 	LatestCtxGetter     func() sdk.Context
+	MEVKeeper           *mevkeeper.Keeper // Add this line
 
 	TracingInfo *tracing.Info
 }
@@ -90,6 +91,8 @@ func NewAnteHandlerAndDepGenerator(options HandlerOptions) (sdk.AnteHandler, sdk
 		sdk.DefaultWrappedAnteDecorator(ante.NewTxTimeoutHeightDecorator()),
 		sdk.DefaultWrappedAnteDecorator(ante.NewValidateMemoDecorator(options.AccountKeeper)),
 		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
+		// Add MEV decorator here, before PriorityDecorator
+		sdk.DefaultWrappedAnteDecorator(mevante.NewMEVDecorator(options.MevKeeper)),
 		// PriorityDecorator must be called after DeductFeeDecorator which sets tx priority based on tx fees
 		sdk.DefaultWrappedAnteDecorator(antedecorators.NewPriorityDecorator()),
 		// SetPubKeyDecorator must be called before all signature verification decorators
