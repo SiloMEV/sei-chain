@@ -102,6 +102,7 @@ func (suite *AnteTestSuite) SetupTest(isCheckTx bool) {
 			AccessControlKeeper: &suite.App.AccessControlKeeper,
 			TracingInfo:         tracingInfo,
 			EVMKeeper:           &suite.App.EvmKeeper,
+			MevKeeper:          &suite.App.MevKeeper,
 			LatestCtxGetter:     func() sdk.Context { return suite.Ctx },
 		},
 	)
