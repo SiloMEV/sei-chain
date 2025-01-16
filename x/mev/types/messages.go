@@ -15,7 +15,7 @@ const (
 // NewMsgSubmitBundle creates a new MsgSubmitBundle instance
 func NewMsgSubmitBundle(bundle Bundle) *MsgSubmitBundle {
 	return &MsgSubmitBundle{
-		Sender:    bundle.Sender.String(),
+		Sender:    bundle.Sender,
 		Txs:       bundle.Txs,
 		BlockNum:  bundle.BlockNum,
 		Timestamp: bundle.Timestamp,

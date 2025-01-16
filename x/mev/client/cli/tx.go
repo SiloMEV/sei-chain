@@ -17,7 +17,7 @@ func GetTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                        types.ModuleName,
 		Short:                      fmt.Sprintf("%s transactions subcommands", types.ModuleName),
-		DisableFlagParsing:        true,
+		DisableFlagParsing:         true,
 		SuggestionsMinimumDistance: 2,
 		RunE:                       client.ValidateCmd,
 	}
@@ -51,7 +51,7 @@ func CmdSubmitBundle() *cobra.Command {
 			}
 
 			bundle := types.Bundle{
-				Sender:    clientCtx.GetFromAddress(),
+				Sender:    clientCtx.GetFromAddress().String(),
 				Txs:       txs,
 				BlockNum:  blockNum,
 				Timestamp: clientCtx.Height,
@@ -68,4 +68,4 @@ func CmdSubmitBundle() *cobra.Command {
 
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
-} 
+}

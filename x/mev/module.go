@@ -79,7 +79,7 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *r
 
 // GetTxCmd returns the root tx command for the mev module.
 func (AppModuleBasic) GetTxCmd() *cobra.Command {
-	return nil
+	return cli.GetTxCmd()
 }
 
 // GetQueryCmd returns the root query command for the mev module.

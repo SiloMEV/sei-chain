@@ -1,13 +1,13 @@
 package keeper_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/sei-protocol/sei-chain/app"
 	"github.com/sei-protocol/sei-chain/x/mev/types"
 )
@@ -24,7 +24,7 @@ func TestKeeper_SubmitAndQueryBundles(t *testing.T) {
 
 	// Submit a bundle
 	bundle := types.Bundle{
-		Sender:    []byte("test_sender"),
+		Sender:    "test_sender",
 		Txs:       []string{"tx1", "tx2"},
 		BlockNum:  100,
 		Timestamp: ctx.BlockTime().Unix(),
@@ -36,7 +36,7 @@ func TestKeeper_SubmitAndQueryBundles(t *testing.T) {
 	require.True(t, res.Success)
 
 	// Query bundles
-	queryRes, err := app.MevKeeper.PendingBundles(context.Background(), &types.QueryPendingBundlesRequest{})
+	queryRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &types.QueryPendingBundlesRequest{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(queryRes.Bundles))
 	require.Equal(t, bundle.Txs, queryRes.Bundles[0].Txs)

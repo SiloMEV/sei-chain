@@ -1,13 +1,13 @@
 package mev_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/sei-protocol/sei-chain/app"
 	"github.com/sei-protocol/sei-chain/x/mev"
 	"github.com/sei-protocol/sei-chain/x/mev/types"
@@ -33,10 +33,10 @@ func TestBasicModule(t *testing.T) {
 
 func TestQueryPendingBundles(t *testing.T) {
 	app := app.Setup(false, false)
-	// ctx := app.BaseApp.NewContext(false, tmproto.Header{})
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	// Query pending bundles
-	res, err := app.MevKeeper.PendingBundles(context.Background(), &types.QueryPendingBundlesRequest{})
+	res, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &types.QueryPendingBundlesRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Equal(t, 0, len(res.Bundles))
@@ -48,7 +48,7 @@ func TestSubmitBundle(t *testing.T) {
 
 	// Create a test bundle
 	bundle := types.Bundle{
-		Sender:    []byte("test_sender"),
+		Sender:    "test_sender",
 		Txs:       []string{"tx1", "tx2"},
 		BlockNum:  100,
 		Timestamp: ctx.BlockTime().Unix(),
@@ -61,7 +61,7 @@ func TestSubmitBundle(t *testing.T) {
 	require.True(t, res.Success)
 
 	// Verify bundle was stored
-	queryRes, err := app.MevKeeper.PendingBundles(context.Background(), &types.QueryPendingBundlesRequest{})
+	queryRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &types.QueryPendingBundlesRequest{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(queryRes.Bundles))
 	require.Equal(t, bundle.Txs, queryRes.Bundles[0].Txs)

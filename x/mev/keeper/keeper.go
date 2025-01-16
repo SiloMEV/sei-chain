@@ -24,7 +24,17 @@ func NewKeeper(
 // SubmitBundle handles a MsgSubmitBundle
 func (k Keeper) SubmitBundle(ctx sdk.Context, msg *types.MsgSubmitBundle) (*types.MsgSubmitBundleResponse, error) {
 	// Store the bundle
-	// k.SetBundle(ctx, &msg.Bundle)
+	bundle := types.Bundle{
+		Sender:    msg.Sender,
+		Txs:       msg.Txs,
+		BlockNum:  msg.BlockNum,
+		Timestamp: msg.Timestamp,
+	}
+
+	// TODO: Add actual bundle storage logic here
+	store := ctx.KVStore(k.storeKey)
+	bz := k.cdc.MustMarshal(&bundle)
+	store.Set([]byte(bundle.Sender), bz)
 
 	return &types.MsgSubmitBundleResponse{
 		Success: true,
