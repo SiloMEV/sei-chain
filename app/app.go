@@ -1114,12 +1114,87 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, app.genesisImportConfig)
 }
 
-func (app *App) PrepareProposalHandler(_ sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	// Get all pending bundles for this height
+	bundleRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &mevtypes.QueryPendingBundlesRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	maxTxBytes := req.MaxTxBytes
+	var selectedTxs [][]byte
+	bundleTxMap := make(map[string]struct{})
+
+	// First, add any system transactions (governance, etc)
+	for _, tx := range req.Txs {
+		if app.isSystemTx(tx) {
+			selectedTxs = append(selectedTxs, tx)
+		}
+	}
+
+	// Next, add bundle transactions with highest priority
+	for _, bundle := range bundleRes.Bundles {
+		// Skip bundles not meant for this height
+		if bundle.BlockNum != uint64(ctx.BlockHeight()) {
+			continue
+		}
+
+		// Calculate total size of this bundle
+		bundleSize := int64(0)
+		for _, txStr := range bundle.Txs {
+			bundleSize += int64(len(txStr))
+		}
+
+		// Check if entire bundle fits
+		if getTotalSize(selectedTxs)+bundleSize <= maxTxBytes {
+			// Add all transactions from this bundle
+			for _, txStr := range bundle.Txs {
+				txBytes := []byte(txStr)
+				selectedTxs = append(selectedTxs, txBytes)
+				bundleTxMap[string(txBytes)] = struct{}{}
+			}
+		}
+	}
+
+	// Finally, add remaining transactions up to size limit
+	for _, tx := range req.Txs {
+		// Skip if already included as part of a bundle or system tx
+		if _, isBundleTx := bundleTxMap[string(tx)]; isBundleTx || app.isSystemTx(tx) {
+			continue
+		}
+
+		if getTotalSize(selectedTxs)+int64(len(tx)) <= maxTxBytes {
+			selectedTxs = append(selectedTxs, tx)
+		}
+	}
+
+	// Convert selectedTxs to TxRecords
+	txRecords := make([]*abci.TxRecord, len(selectedTxs))
+	for i, tx := range selectedTxs {
+		txRecords[i] = &abci.TxRecord{
+			Action: abci.TxRecord_UNMODIFIED,
+			Tx:     tx,
+		}
+	}
+
 	return &abci.ResponsePrepareProposal{
-		TxRecords: utils.Map(req.Txs, func(tx []byte) *abci.TxRecord {
-			return &abci.TxRecord{Action: abci.TxRecord_UNMODIFIED, Tx: tx}
-		}),
+		TxRecords: txRecords,
 	}, nil
+}
+
+func getTotalSize(txs [][]byte) int64 {
+    var size int64
+    for _, tx := range txs {
+        size += int64(len(tx))
+    }
+    return size
+}
+
+func (app *App) isSystemTx(tx []byte) bool {
+    // Implement system transaction detection logic
+    // This could check for specific message types that should always be included
+    // like governance votes, IBC packets, etc.
+    return false
 }
 
 func (app *App) GetOptimisticProcessingInfo() *OptimisticProcessingInfo {
