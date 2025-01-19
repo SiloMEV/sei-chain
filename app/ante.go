@@ -16,8 +16,6 @@ import (
 	"github.com/sei-protocol/sei-chain/app/antedecorators/depdecorators"
 	evmante "github.com/sei-protocol/sei-chain/x/evm/ante"
 	evmkeeper "github.com/sei-protocol/sei-chain/x/evm/keeper"
-	mevante "github.com/sei-protocol/sei-chain/x/mev/ante"
-	mevkeeper "github.com/sei-protocol/sei-chain/x/mev/keeper"
 	"github.com/sei-protocol/sei-chain/x/oracle"
 	oraclekeeper "github.com/sei-protocol/sei-chain/x/oracle/keeper"
 )
@@ -35,7 +33,6 @@ type HandlerOptions struct {
 	EVMKeeper           *evmkeeper.Keeper
 	TXCounterStoreKey   sdk.StoreKey
 	LatestCtxGetter     func() sdk.Context
-	MevKeeper           *mevkeeper.Keeper
 
 	TracingInfo *tracing.Info
 }
@@ -93,8 +90,6 @@ func NewAnteHandlerAndDepGenerator(options HandlerOptions) (sdk.AnteHandler, sdk
 		sdk.DefaultWrappedAnteDecorator(ante.NewTxTimeoutHeightDecorator()),
 		sdk.DefaultWrappedAnteDecorator(ante.NewValidateMemoDecorator(options.AccountKeeper)),
 		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
-		// Add MEV decorator here, before PriorityDecorator
-		sdk.DefaultWrappedAnteDecorator(mevante.NewMEVDecorator(*options.MevKeeper)),
 		// PriorityDecorator must be called after DeductFeeDecorator which sets tx priority based on tx fees
 		sdk.DefaultWrappedAnteDecorator(antedecorators.NewPriorityDecorator()),
 		// SetPubKeyDecorator must be called before all signature verification decorators

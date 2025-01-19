@@ -40,38 +40,3 @@ func (k Keeper) SubmitBundle(ctx sdk.Context, msg *types.MsgSubmitBundle) (*type
 		Success: true,
 	}, nil
 }
-
-func (k Keeper) GetNextBundle(ctx sdk.Context, blockHeight uint64) *types.Bundle {
-	store := ctx.KVStore(k.storeKey)
-
-	var nextBundle *types.Bundle
-	iterator := sdk.KVStorePrefixIterator(store, []byte("bundle"))
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		var bundle types.Bundle
-		k.cdc.MustUnmarshal(iterator.Value(), &bundle)
-		if bundle.BlockNum == blockHeight {
-			nextBundle = &bundle
-			break
-		}
-	}
-
-	return nextBundle
-}
-
-func (k Keeper) CleanupProcessedBundles(ctx sdk.Context) {
-	store := ctx.KVStore(k.storeKey)
-	currentHeight := uint64(ctx.BlockHeight())
-
-	iterator := sdk.KVStorePrefixIterator(store, []byte("bundle"))
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		var bundle types.Bundle
-		k.cdc.MustUnmarshal(iterator.Value(), &bundle)
-		if bundle.BlockNum <= currentHeight {
-			store.Delete(iterator.Key())
-		}
-	}
-}
