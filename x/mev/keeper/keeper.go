@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/sei-protocol/sei-chain/x/mev/types"
@@ -35,6 +37,7 @@ func (k Keeper) SubmitBundle(ctx sdk.Context, msg *types.MsgSubmitBundle) (*type
 	store := ctx.KVStore(k.storeKey)
 	bz := k.cdc.MustMarshal(&bundle)
 	store.Set([]byte(bundle.Sender), bz)
+	fmt.Println("Submitted bundle for", bundle.Sender, "with", len(bundle.Txs), "transactions")
 
 	return &types.MsgSubmitBundleResponse{
 		Success: true,
