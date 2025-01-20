@@ -1116,10 +1116,13 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 
 func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	// Get all pending bundles for this height
+	fmt.Println("Preparing proposal for height", ctx.BlockHeight())
+
 	bundleRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &mevtypes.QueryPendingBundlesRequest{})
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Found", len(bundleRes.Bundles), "pending bundles from mevkeeper")
 
 	maxTxBytes := req.MaxTxBytes
 	var selectedTxs [][]byte
@@ -1183,18 +1186,18 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 }
 
 func getTotalSize(txs [][]byte) int64 {
-    var size int64
-    for _, tx := range txs {
-        size += int64(len(tx))
-    }
-    return size
+	var size int64
+	for _, tx := range txs {
+		size += int64(len(tx))
+	}
+	return size
 }
 
 func (app *App) isSystemTx(tx []byte) bool {
-    // Implement system transaction detection logic
-    // This could check for specific message types that should always be included
-    // like governance votes, IBC packets, etc.
-    return false
+	// Implement system transaction detection logic
+	// This could check for specific message types that should always be included
+	// like governance votes, IBC packets, etc.
+	return false
 }
 
 func (app *App) GetOptimisticProcessingInfo() *OptimisticProcessingInfo {
