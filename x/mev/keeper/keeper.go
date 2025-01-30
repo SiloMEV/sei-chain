@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -9,23 +10,23 @@ import (
 )
 
 type Keeper struct {
-	cdc      codec.BinaryCodec
-	storeKey sdk.StoreKey
+	cdc         codec.BinaryCodec
+	ephemeralMu sync.Mutex
+	ephemeral   map[string]*types.Bundle
 }
 
 func NewKeeper(
 	cdc codec.BinaryCodec,
-	storeKey sdk.StoreKey,
+	_ sdk.StoreKey, // keep parameter to maintain compatibility but don't use it
 ) Keeper {
 	return Keeper{
-		cdc:      cdc,
-		storeKey: storeKey,
+		cdc:       cdc,
+		ephemeral: make(map[string]*types.Bundle),
 	}
 }
 
 // SubmitBundle handles a MsgSubmitBundle
-func (k Keeper) SubmitBundle(ctx sdk.Context, msg *types.MsgSubmitBundle) (*types.MsgSubmitBundleResponse, error) {
-	// Store the bundle
+func (k *Keeper) SubmitBundle(ctx sdk.Context, msg *types.MsgSubmitBundle) (*types.MsgSubmitBundleResponse, error) {
 	bundle := types.Bundle{
 		Sender:    msg.Sender,
 		Txs:       msg.Txs,
@@ -33,10 +34,10 @@ func (k Keeper) SubmitBundle(ctx sdk.Context, msg *types.MsgSubmitBundle) (*type
 		Timestamp: msg.Timestamp,
 	}
 
-	// TODO: Add actual bundle storage logic here
-	store := ctx.KVStore(k.storeKey)
-	bz := k.cdc.MustMarshal(&bundle)
-	store.Set([]byte(bundle.Sender), bz)
+	k.ephemeralMu.Lock()
+	k.ephemeral[bundle.Sender] = &bundle
+	k.ephemeralMu.Unlock()
+
 	fmt.Println("Submitted bundle for", bundle.Sender, "with", len(bundle.Txs), "transactions")
 
 	return &types.MsgSubmitBundleResponse{

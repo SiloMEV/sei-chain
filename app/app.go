@@ -1116,13 +1116,13 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 
 func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	// Get all pending bundles for this height
-	fmt.Println("Preparing proposal for height", ctx.BlockHeight())
+	// fmt.Println("Preparing proposal for height", ctx.BlockHeight())
 
 	bundleRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &mevtypes.QueryPendingBundlesRequest{})
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Found", len(bundleRes.Bundles), "pending bundles from mevkeeper")
+	// fmt.Println("Found", len(bundleRes.Bundles), "pending bundles from mevkeeper")
 
 	maxTxBytes := req.MaxTxBytes
 	var selectedTxs [][]byte
