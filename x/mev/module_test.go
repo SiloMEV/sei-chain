@@ -49,7 +49,7 @@ func TestSubmitBundle(t *testing.T) {
 	// Create a test bundle
 	bundle := types.Bundle{
 		Sender:    "test_sender",
-		Txs:       []string{"tx1", "tx2"},
+		Txs:       [][]byte{[]byte("tx1"), []byte("tx2")},
 		BlockNum:  100,
 		Timestamp: ctx.BlockTime().Unix(),
 	}
