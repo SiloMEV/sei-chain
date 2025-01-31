@@ -858,8 +858,8 @@ func New(
 		wasm.ModuleName,
 		evmtypes.ModuleName,
 		acltypes.ModuleName,
+		mevtypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
-		mevtypes.ModuleName, // Add here
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
@@ -1116,26 +1116,30 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 
 func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	// Get all pending bundles for this height
-	// fmt.Println("Preparing proposal for height", ctx.BlockHeight())
+	ctx.Logger().Debug("Preparing proposal", "height", ctx.BlockHeight())
 
 	bundleRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &mevtypes.QueryPendingBundlesRequest{})
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Println("Found", len(bundleRes.Bundles), "pending bundles from mevkeeper")
+	ctx.Logger().Debug("found pending bundles  from mevkeeper", "count", len(bundleRes.Bundles))
 
 	maxTxBytes := req.MaxTxBytes
 	var selectedTxs [][]byte
-	bundleTxMap := make(map[string]struct{})
+	var selectedTxsTotalSize = int64(0)
+	var remainingTxs [][]byte
 
-	// First, add any system transactions (governance, etc)
+	// First, add any system transactions (governance, etc.)
 	for _, tx := range req.Txs {
 		if app.isSystemTx(tx) {
 			selectedTxs = append(selectedTxs, tx)
+			selectedTxsTotalSize += int64(len(tx))
+		} else {
+			remainingTxs = append(remainingTxs, tx)
 		}
 	}
 
-	// Next, add bundle transactions with highest priority
+	// Next, add bundle transactions with the highest priority
 	for _, bundle := range bundleRes.Bundles {
 		// Skip bundles not meant for this height
 		if bundle.BlockNum != uint64(ctx.BlockHeight()) {
@@ -1149,25 +1153,21 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		}
 
 		// Check if entire bundle fits
-		if getTotalSize(selectedTxs)+bundleSize <= maxTxBytes {
+		if selectedTxsTotalSize+bundleSize <= maxTxBytes {
 			// Add all transactions from this bundle
-			for _, txStr := range bundle.Txs {
-				txBytes := []byte(txStr)
-				selectedTxs = append(selectedTxs, txBytes)
-				bundleTxMap[string(txBytes)] = struct{}{}
+			for _, tx := range bundle.Txs {
+				//txBytes := []byte(txStr)
+				selectedTxs = append(selectedTxs, tx)
 			}
+			selectedTxsTotalSize += bundleSize
 		}
 	}
 
 	// Finally, add remaining transactions up to size limit
-	for _, tx := range req.Txs {
-		// Skip if already included as part of a bundle or system tx
-		if _, isBundleTx := bundleTxMap[string(tx)]; isBundleTx || app.isSystemTx(tx) {
-			continue
-		}
-
-		if getTotalSize(selectedTxs)+int64(len(tx)) <= maxTxBytes {
+	for _, tx := range remainingTxs {
+		if selectedTxsTotalSize+int64(len(tx)) <= maxTxBytes {
 			selectedTxs = append(selectedTxs, tx)
+			selectedTxsTotalSize += int64(len(tx))
 		}
 	}
 
@@ -1183,14 +1183,6 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	return &abci.ResponsePrepareProposal{
 		TxRecords: txRecords,
 	}, nil
-}
-
-func getTotalSize(txs [][]byte) int64 {
-	var size int64
-	for _, tx := range txs {
-		size += int64(len(tx))
-	}
-	return size
 }
 
 func (app *App) isSystemTx(tx []byte) bool {

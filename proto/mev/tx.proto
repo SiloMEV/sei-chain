@@ -14,7 +14,7 @@ service Msg {
 // MsgSubmitBundle represents a message to submit a bundle of transactions
 message MsgSubmitBundle {
   string sender = 1 [(gogoproto.moretags) = "yaml:\"sender\""];
-  repeated string txs = 2 [(gogoproto.moretags) = "yaml:\"txs\""];
+  repeated bytes txs = 2 [(gogoproto.moretags) = "yaml:\"txs\""];
   uint64 block_num = 3 [(gogoproto.moretags) = "yaml:\"block_num\""];
   int64 timestamp = 4 [(gogoproto.moretags) = "yaml:\"timestamp\""];
 }

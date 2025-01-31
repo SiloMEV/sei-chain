@@ -145,7 +145,7 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Query_PendingBundles_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"sei-protocol", "seichain", "mev", "pending_bundles"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_PendingBundles_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"sei-protocol", "seichain", "mev", "pending_bundles"}, "", runtime.AssumeColonVerbOpt(false)))
 )
 
 var (

@@ -542,7 +542,7 @@ func TestBundleSubmissionSuccess(t *testing.T) {
 	// Create and submit bundle
 	bundle := mevtypes.Bundle{
 		Sender:    account,
-		Txs:       []string{string(tx)},
+		Txs:       [][]byte{tx},
 		BlockNum:  uint64(1),
 		Timestamp: testWrapper.Ctx.BlockTime().Unix(),
 	}
@@ -575,7 +575,7 @@ func TestBundleSubmissionSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, prepareProposalRes)
 
-	fmt.Println("prepareProposalRes", prepareProposalRes)
+	t.Log("prepareProposalRes", prepareProposalRes)
 
 	// Extract tx bytes from TxRecords
 	txBytes := [][]byte{}
@@ -596,7 +596,7 @@ func TestBundleSubmissionSuccess(t *testing.T) {
 		req.DecidedLastCommit,
 	)
 
-	fmt.Println("txResults", txResults)
+	t.Log("txResults", txResults)
 
 	// Verify results
 	require.Equal(t, 1, len(txResults))

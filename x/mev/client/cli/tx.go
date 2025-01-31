@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/math"
 
 	"github.com/spf13/cobra"
 
@@ -40,14 +41,14 @@ func CmdSubmitBundle() *cobra.Command {
 				return err
 			}
 
-			var txs []string
+			var txs [][]byte
 			if err := json.Unmarshal([]byte(args[0]), &txs); err != nil {
 				return fmt.Errorf("failed to parse transactions: %w", err)
 			}
 
-			blockNum, err := ParseUint64(args[1])
-			if err != nil {
-				return fmt.Errorf("failed to parse block number: %w", err)
+			blockNum, ok := math.ParseUint64(args[1])
+			if !ok {
+				return fmt.Errorf("failed to parse block number: %s", args[1])
 			}
 
 			bundle := types.Bundle{
