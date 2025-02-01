@@ -21,7 +21,7 @@ services:
       - "${PROJECT_HOME}/../sei-cosmos:/sei-protocol/sei-cosmos:Z"
       - "${PROJECT_HOME}/../sei-db:/sei-protocol/sei-db:Z"
       - "${PROJECT_HOME}/../go-ethereum:/sei-protocol/go-ethereum:Z"
-      - "${GO_PKG_PATH}/mod:/root/go/pkg/mod:Z"
+      - "${GO_MOD_CACHE}:/root/go/pkg/mod:Z"
       - "${GOCACHE}:/root/.cache/go-build:Z"
     networks:
       localnet:
@@ -48,7 +48,7 @@ services:
       - "${PROJECT_HOME}/../sei-cosmos:/sei-protocol/sei-cosmos:Z"
       - "${PROJECT_HOME}/../sei-db:/sei-protocol/sei-db:Z"
       - "${PROJECT_HOME}/../go-ethereum:/sei-protocol/go-ethereum:Z"
-      - "${GO_PKG_PATH}/mod:/root/go/pkg/mod:Z"
+      - "${GO_MOD_CACHE}:/root/go/pkg/mod:Z"
       - "${GOCACHE}:/root/.cache/go-build:Z"
     networks:
       localnet:
@@ -75,7 +75,7 @@ services:
       - "${PROJECT_HOME}/../sei-cosmos:/sei-protocol/sei-cosmos:Z"
       - "${PROJECT_HOME}/../sei-db:/sei-protocol/sei-db:Z"
       - "${PROJECT_HOME}/../go-ethereum:/sei-protocol/go-ethereum:Z"
-      - "${GO_PKG_PATH}/mod:/root/go/pkg/mod:Z"
+      - "${GO_MOD_CACHE}:/root/go/pkg/mod:Z"
       - "${GOCACHE}:/root/.cache/go-build:Z"
     networks:
       localnet:
@@ -102,7 +102,7 @@ services:
       - "${PROJECT_HOME}/../sei-cosmos:/sei-protocol/sei-cosmos:Z"
       - "${PROJECT_HOME}/../sei-db:/sei-protocol/sei-db:Z"
       - "${PROJECT_HOME}/../go-ethereum:/sei-protocol/go-ethereum:Z"
-      - "${GO_PKG_PATH}/mod:/root/go/pkg/mod:Z"
+      - "${GO_MOD_CACHE}:/root/go/pkg/mod:Z"
       - "${GOCACHE}:/root/.cache/go-build:Z"
     networks:
       localnet:
