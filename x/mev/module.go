@@ -3,6 +3,7 @@ package mev
 import (
 	"encoding/json"
 	"fmt"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
@@ -78,6 +79,9 @@ func (AppModuleBasic) RegisterRESTRoutes(clientCtx client.Context, rtr *mux.Rout
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the mev module.
 func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
 	// Register your routes here if needed
+
+	//_ = types.RegisterQueryHandlerClient(context.Background(), mux, types.NewMsgClient(clientCtx))
+
 }
 
 // GetTxCmd returns the root tx command for the mev module.
@@ -110,9 +114,38 @@ func (AppModule) Name() string {
 // RegisterInvariants registers the mev module invariants.
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
+func NewHandler(k *keeper.Keeper) sdk.Handler {
+	//msgServer := keeper.NewMsgServerImpl(k)
+
+	return func(ctx sdk.Context, msg sdk.Msg) (*sdk.Result, error) {
+
+		fmt.Println("MEV HANDLER MEV")
+
+		ctx = ctx.WithEventManager(sdk.NewEventManager())
+
+		switch msg := msg.(type) {
+		//case *types.MsgEVMTransaction:
+		//	res, err := msgServer.EVMTransaction(sdk.WrapSDKContext(ctx), msg)
+		//	return sdk.WrapServiceResult(ctx, res, err)
+		//case *types.MsgSend:
+		//	res, err := msgServer.Send(sdk.WrapSDKContext(ctx), msg)
+		//	return sdk.WrapServiceResult(ctx, res, err)
+		//case *types.MsgRegisterPointer:
+		//	res, err := msgServer.RegisterPointer(sdk.WrapSDKContext(ctx), msg)
+		//	return sdk.WrapServiceResult(ctx, res, err)
+		//case *types.MsgAssociateContractAddress:
+		//	res, err := msgServer.AssociateContractAddress(sdk.WrapSDKContext(ctx), msg)
+		//	return sdk.WrapServiceResult(ctx, res, err)
+		default:
+			errMsg := fmt.Sprintf("unrecognized %s message type MEV MEV MEV: %T", types.ModuleName, msg)
+			return nil, sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, errMsg)
+		}
+	}
+}
+
 // Route returns the message routing key for the mev module.
 func (am AppModule) Route() sdk.Route {
-	return sdk.NewRoute(types.RouterKey, nil)
+	return sdk.NewRoute(types.RouterKey, NewHandler(am.keeper))
 }
 
 // QuerierRoute returns the mev module's querier route name.

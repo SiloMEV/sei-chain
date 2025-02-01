@@ -1,20 +1,24 @@
 - name: Test MEV Module
   inputs:
+    - name: Query Pending Bundles
+      cmd: seid query mev pending-bundles
+      env: QUERY_BUNDLE_EMPTY
     - name: Submit Bundle
       cmd: |
         printf "12345678\n" | seid tx mev submit-bundle "[\"a29rbw==\", \"Y3dpcg==\"]" 100 \
           --from node_admin --chain-id sei --fees 2000usei -b block -y
       env: SUBMIT_BUNDLE
 
-#    - name: Query Pending Bundles
-#      cmd: seid query mev pending-bundles
-#      env: QUERY_BUNDLE
+    - name: Query Pending Bundles
+      cmd: seid query mev pending-bundles
+      env: QUERY_BUNDLE_ONE
 
 
   verifiers:
 #      # Add comments for what should the expected result
       - type: eval
+        expr: QUERY_BUNDLE_EMPTY == ""
+      - type: eval
         expr: SUBMIT_BUNDLE == ""
-#      - type: regex
-#        result: RESULT
-#        expr: <Replace with regular expression>
+      - type: eval
+        expr: QUERY_BUNDLE_ONE == ""

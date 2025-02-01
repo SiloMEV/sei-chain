@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/sei-protocol/sei-chain/x/mev/types"
 )
 
@@ -52,7 +52,7 @@ func CmdSubmitBundle() *cobra.Command {
 			}
 
 			bundle := types.Bundle{
-				Sender:    clientCtx.GetFromAddress().String(),
+				Sender:    "",
 				Txs:       txs,
 				BlockNum:  blockNum,
 				Timestamp: clientCtx.Height,
@@ -63,7 +63,16 @@ func CmdSubmitBundle() *cobra.Command {
 				return err
 			}
 
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+			msgClient := types.NewMsgClient(clientCtx)
+
+			// TODO - proper context?
+			submitBundleResponse, err := msgClient.SubmitBundle(context.Background(), msg)
+			if err != nil {
+				return fmt.Errorf("failed to submit bundle: %w", err)
+			}
+
+			// Do we connect to client context or can configure rpc address?
+			return clientCtx.PrintProto(submitBundleResponse)
 		},
 	}
 

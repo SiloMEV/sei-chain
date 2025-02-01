@@ -49,10 +49,10 @@ func (msg MsgSubmitBundle) GetSignBytes() []byte {
 
 // ValidateBasic implements the sdk.Msg interface
 func (msg MsgSubmitBundle) ValidateBasic() error {
-	_, err := sdk.AccAddressFromBech32(msg.Sender)
-	if err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
-	}
+	//_, err := sdk.AccAddressFromBech32(msg.Sender)
+	//if err != nil {
+	//	return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
+	//}
 
 	if len(msg.Txs) == 0 {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "transactions cannot be empty")
