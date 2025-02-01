@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -8,6 +9,16 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/sei-protocol/sei-chain/x/mev/types"
 )
+
+// TODO - separate keeper logic and grpc wrapper? Should we?
+
+//// NewMsgServerImpl returns an implementation of the MsgServer interface
+//// for the provided Keeper.
+//func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
+//	return &msgServer{Keeper: keeper}
+//}
+//
+//var _ types.MsgServer = msgServer{}
 
 type Keeper struct {
 	cdc         codec.BinaryCodec
@@ -26,7 +37,7 @@ func NewKeeper(
 }
 
 // SubmitBundle handles a MsgSubmitBundle
-func (k *Keeper) SubmitBundle(ctx sdk.Context, msg *types.MsgSubmitBundle) (*types.MsgSubmitBundleResponse, error) {
+func (k *Keeper) SubmitBundle(ctx context.Context, msg *types.MsgSubmitBundle) (*types.MsgSubmitBundleResponse, error) {
 	bundle := types.Bundle{
 		Sender:    msg.Sender,
 		Txs:       msg.Txs,

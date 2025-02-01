@@ -3,7 +3,6 @@ package mev
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
@@ -42,7 +41,11 @@ func (AppModuleBasic) Name() string {
 func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
 // RegisterInterfaces registers the module's interface types
-func (b AppModuleBasic) RegisterInterfaces(_ codectypes.InterfaceRegistry) {}
+func (b AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
+
+	types.RegisterInterfaces(registry)
+
+}
 
 // DefaultGenesis returns default genesis state as raw bytes for the mev module.
 func (AppModuleBasic) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
@@ -89,10 +92,10 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 
 type AppModule struct {
 	AppModuleBasic
-	keeper keeper.Keeper
+	keeper *keeper.Keeper
 }
 
-func NewAppModule(cdc codec.Codec, k keeper.Keeper) AppModule {
+func NewAppModule(cdc codec.Codec, k *keeper.Keeper) AppModule {
 	return AppModule{
 		AppModuleBasic: NewAppModuleBasic(cdc),
 		keeper:         k,
@@ -159,6 +162,9 @@ func (am AppModule) EndBlock(_ sdk.Context, _ abci.RequestEndBlock) []abci.Valid
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	// Register services here when needed
 	// For now, we'll just register a basic migration like other modules
+	types.RegisterMsgServer(cfg.MsgServer(), am.keeper)
+	types.RegisterQueryServer(cfg.QueryServer(), am.keeper)
+
 	_ = cfg.RegisterMigration(types.ModuleName, 1, func(ctx sdk.Context) error {
 		return nil
 	})

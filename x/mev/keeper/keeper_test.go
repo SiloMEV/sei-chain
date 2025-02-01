@@ -31,7 +31,7 @@ func TestKeeper_SubmitAndQueryBundles(t *testing.T) {
 	}
 
 	msg := types.NewMsgSubmitBundle(bundle)
-	res, err := app.MevKeeper.SubmitBundle(ctx, msg)
+	res, err := app.MevKeeper.SubmitBundle(ctx.Context(), msg)
 	require.NoError(t, err)
 	require.True(t, res.Success)
 

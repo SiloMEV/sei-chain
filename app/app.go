@@ -761,7 +761,7 @@ func New(
 		tokenfactorymodule.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		// this line is used by starport scaffolding # stargate/app/appModule
-		mev.NewAppModule(appCodec, app.MevKeeper),
+		mev.NewAppModule(appCodec, &app.MevKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that

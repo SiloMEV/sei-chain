@@ -548,7 +548,7 @@ func TestBundleSubmissionSuccess(t *testing.T) {
 	}
 
 	msg := mevtypes.NewMsgSubmitBundle(bundle)
-	res, err := testWrapper.App.MevKeeper.SubmitBundle(testWrapper.Ctx, msg)
+	res, err := testWrapper.App.MevKeeper.SubmitBundle(testWrapper.Ctx.Context(), msg)
 	require.NoError(t, err)
 	require.True(t, res.Success)
 
