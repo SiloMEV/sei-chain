@@ -1,4 +1,4 @@
-package keeper
+package mev
 
 import (
 	"context"
@@ -7,23 +7,14 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/sei-protocol/sei-chain/x/mev/types"
 )
 
 // TODO - separate keeper logic and grpc wrapper? Should we?
 
-//// NewMsgServerImpl returns an implementation of the MsgServer interface
-//// for the provided Keeper.
-//func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
-//	return &msgServer{Keeper: keeper}
-//}
-//
-//var _ types.MsgServer = msgServer{}
-
 type Keeper struct {
 	cdc         codec.BinaryCodec
 	ephemeralMu sync.Mutex
-	ephemeral   map[string]*types.Bundle
+	ephemeral   map[string]*Bundle
 }
 
 func NewKeeper(
@@ -32,26 +23,27 @@ func NewKeeper(
 ) Keeper {
 	return Keeper{
 		cdc:       cdc,
-		ephemeral: make(map[string]*types.Bundle),
+		ephemeral: make(map[string]*Bundle),
 	}
 }
 
 // SubmitBundle handles a MsgSubmitBundle
-func (k *Keeper) SubmitBundle(ctx context.Context, msg *types.MsgSubmitBundle) (*types.MsgSubmitBundleResponse, error) {
-	bundle := types.Bundle{
+func (k *Keeper) SubmitBundle(ctx context.Context, msg *MsgSubmitBundle) (*MsgSubmitBundleResponse, error) {
+	k.ephemeralMu.Lock()
+	defer k.ephemeralMu.Unlock()
+
+	bundle := Bundle{
 		Sender:    msg.Sender,
 		Txs:       msg.Txs,
 		BlockNum:  msg.BlockNum,
 		Timestamp: msg.Timestamp,
 	}
 
-	k.ephemeralMu.Lock()
 	k.ephemeral[bundle.Sender] = &bundle
-	k.ephemeralMu.Unlock()
 
 	fmt.Println("Submitted bundle for", bundle.Sender, "with", len(bundle.Txs), "transactions")
 
-	return &types.MsgSubmitBundleResponse{
+	return &MsgSubmitBundleResponse{
 		Success: true,
 	}, nil
 }

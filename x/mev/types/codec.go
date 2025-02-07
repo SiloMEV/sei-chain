@@ -5,7 +5,7 @@ import (
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(&MsgSubmitBundle{}, "mev/SubmitBundle", nil)
+	//cdc.RegisterConcrete(&MsgSubmitBundle{}, "mev/SubmitBundle", nil)
 }
 
 var (

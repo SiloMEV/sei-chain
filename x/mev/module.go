@@ -6,6 +6,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/sei-protocol/sei-chain/mev"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -13,8 +14,6 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	"github.com/sei-protocol/sei-chain/x/mev/client/cli"
-	"github.com/sei-protocol/sei-chain/x/mev/keeper"
 	"github.com/sei-protocol/sei-chain/x/mev/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -43,9 +42,7 @@ func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
 // RegisterInterfaces registers the module's interface types
 func (b AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
-
 	types.RegisterInterfaces(registry)
-
 }
 
 // DefaultGenesis returns default genesis state as raw bytes for the mev module.
@@ -86,20 +83,22 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *r
 
 // GetTxCmd returns the root tx command for the mev module.
 func (AppModuleBasic) GetTxCmd() *cobra.Command {
-	return cli.GetTxCmd()
+	return nil
+	//return cli.GetTxCmd()
 }
 
 // GetQueryCmd returns the root query command for the mev module.
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
-	return cli.GetQueryCmd()
+	return nil
+	//return cli.GetQueryCmd()
 }
 
 type AppModule struct {
 	AppModuleBasic
-	keeper *keeper.Keeper
+	keeper *mev.Keeper
 }
 
-func NewAppModule(cdc codec.Codec, k *keeper.Keeper) AppModule {
+func NewAppModule(cdc codec.Codec, k *mev.Keeper) AppModule {
 	return AppModule{
 		AppModuleBasic: NewAppModuleBasic(cdc),
 		keeper:         k,
@@ -114,7 +113,7 @@ func (AppModule) Name() string {
 // RegisterInvariants registers the mev module invariants.
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
-func NewHandler(k *keeper.Keeper) sdk.Handler {
+func NewHandler(k *mev.Keeper) sdk.Handler {
 	//msgServer := keeper.NewMsgServerImpl(k)
 
 	return func(ctx sdk.Context, msg sdk.Msg) (*sdk.Result, error) {

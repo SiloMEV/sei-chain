@@ -157,8 +157,8 @@ import (
 	_ "github.com/sei-protocol/sei-chain/docs/swagger"
 	ssconfig "github.com/sei-protocol/sei-db/config"
 
+	mevbase "github.com/sei-protocol/sei-chain/mev"
 	mev "github.com/sei-protocol/sei-chain/x/mev"
-	mevkeeper "github.com/sei-protocol/sei-chain/x/mev/keeper"
 	mevtypes "github.com/sei-protocol/sei-chain/x/mev/types"
 )
 
@@ -336,7 +336,7 @@ type App struct {
 	WasmKeeper          wasm.Keeper
 	OracleKeeper        oraclekeeper.Keeper
 	EvmKeeper           evmkeeper.Keeper
-	MevKeeper           mevkeeper.Keeper
+	MevKeeper           mevbase.Keeper
 
 	// make scoped keepers public for test purposes
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
@@ -371,6 +371,7 @@ type App struct {
 
 	encodingConfig        appparams.EncodingConfig
 	evmRPCConfig          evmrpc.Config
+	mevConfig             mevbase.Config
 	lightInvarianceConfig LightInvarianceConfig
 
 	genesisImportConfig genesistypes.GenesisImportConfig
@@ -552,7 +553,7 @@ func New(
 
 	keys[mevtypes.StoreKey] = storetypes.NewKVStoreKey(mevtypes.StoreKey)
 
-	app.MevKeeper = mevkeeper.NewKeeper(
+	app.MevKeeper = mevbase.NewKeeper(
 		appCodec,
 		keys[mevtypes.StoreKey],
 	)
@@ -622,6 +623,10 @@ func New(
 	app.evmRPCConfig, err = evmrpc.ReadConfig(appOpts)
 	if err != nil {
 		panic(fmt.Sprintf("error reading EVM config due to %s", err))
+	}
+	app.mevConfig, err = mevbase.ReadConfig(appOpts)
+	if err != nil {
+		panic(fmt.Sprintf("error reading MEV config due to %s", err))
 	}
 	evmQueryConfig, err := querier.ReadConfig(appOpts)
 	if err != nil {
@@ -1118,7 +1123,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Get all pending bundles for this height
 	ctx.Logger().Debug("Preparing proposal", "height", ctx.BlockHeight())
 
-	bundleRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &mevtypes.QueryPendingBundlesRequest{})
+	bundleRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &mevbase.QueryPendingBundlesRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -1934,6 +1939,13 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 			panic(err)
 		}
 		if err := evmWSServer.Start(); err != nil {
+			panic(err)
+		}
+	}
+
+	if app.mevConfig.ListenAddr != "" {
+		err := mevbase.StartServer(app.Logger(), app.mevConfig, &app.MevKeeper, ctxProvider)
+		if err != nil {
 			panic(err)
 		}
 	}
