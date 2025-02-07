@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/sei-protocol/sei-chain/mev"
 	"math"
 	"math/big"
 	"reflect"
@@ -35,8 +36,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/proto/tendermint/types"
-
-	mevtypes "github.com/sei-protocol/sei-chain/x/mev/types"
 )
 
 func TestEmptyBlockIdempotency(t *testing.T) {
@@ -540,29 +539,28 @@ func TestBundleSubmissionSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create and submit bundle
-	bundle := mevtypes.Bundle{
+	bundle := mev.Bundle{
 		Sender:    account,
 		Txs:       [][]byte{tx},
 		BlockNum:  uint64(1),
 		Timestamp: testWrapper.Ctx.BlockTime().Unix(),
 	}
 
-	msg := mevtypes.NewMsgSubmitBundle(bundle)
-	res, err := testWrapper.App.MevKeeper.SubmitBundle(testWrapper.Ctx.Context(), msg)
+	res, err := testWrapper.App.MevKeeper.SubmitBundle(bundle)
 	require.NoError(t, err)
-	require.True(t, res.Success)
+	require.True(t, res)
 
 	// Verify bundle was stored immediately after submission
-	queryRes, err := testWrapper.App.MevKeeper.PendingBundles(sdk.WrapSDKContext(testWrapper.Ctx), &mevtypes.QueryPendingBundlesRequest{})
+	queryRes, err := testWrapper.App.MevKeeper.PendingBundles()
 	require.NoError(t, err)
-	require.Equal(t, 1, len(queryRes.Bundles))
-	require.Equal(t, bundle.Txs, queryRes.Bundles[0].Txs)
+	require.Equal(t, 1, len(queryRes))
+	require.Equal(t, bundle.Txs, queryRes[0].Txs)
 
 	// Verify bundle was stored immediately after submission
-	queryRes2, err2 := testWrapper.App.MevKeeper.PendingBundles(sdk.WrapSDKContext(testWrapper.Ctx), &mevtypes.QueryPendingBundlesRequest{})
+	queryRes2, err2 := testWrapper.App.MevKeeper.PendingBundles()
 	require.NoError(t, err2)
-	require.Equal(t, 1, len(queryRes2.Bundles))
-	require.Equal(t, bundle.Txs, queryRes2.Bundles[0].Txs)
+	require.Equal(t, 1, len(queryRes2))
+	require.Equal(t, bundle.Txs, queryRes2[0].Txs)
 
 	// Call PrepareProposal
 	prepareProposalReq := abci.RequestPrepareProposal{

@@ -4,12 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/sei-protocol/sei-chain/mev"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 func CmdSubmitBundles() *cobra.Command {
@@ -28,8 +25,6 @@ func CmdSubmitBundles() *cobra.Command {
 			if !ok {
 				return fmt.Errorf("failed to parse block number: %s", args[1])
 			}
-			serverCtx := server.GetServerContextFromCmd(cmd)
-
 			msgSubmitBundle := mev.MsgSubmitBundle{
 				Sender:    "",
 				Txs:       txs,
@@ -37,24 +32,7 @@ func CmdSubmitBundles() *cobra.Command {
 				Timestamp: 0,
 			}
 
-			if err := serverCtx.Viper.BindPFlags(cmd.Flags()); err != nil {
-				return err
-			}
-
-			mevRpcAddr := serverCtx.Viper.GetString(mev.FlagMEVRpcAddr)
-
-			clientCtx, err := client.GetClientQueryContext(cmd)
-			if err != nil {
-				return err
-			}
-
-			grpcConn, err := grpc.DialContext(context.Background(), mevRpcAddr, grpc.WithInsecure())
-			if err != nil {
-				return err
-			}
-
-			// Get gRPC connection from client context
-			mevRpcClient := mev.NewMevRpcServiceClient(grpcConn)
+			mevRpcClient, clientCtx, err := getMEVRpcClient(cmd)
 
 			res, err := mevRpcClient.SubmitBundle(context.Background(), &msgSubmitBundle)
 

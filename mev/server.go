@@ -19,12 +19,20 @@ type mevServer struct {
 	server      *grpc.Server
 }
 
-func (m mevServer) PendingBundles(ctx context.Context, request *QueryPendingBundlesRequest) (*QueryPendingBundlesResponse, error) {
-	return m.keeper.PendingBundles(ctx, request)
+func (m mevServer) PendingBundles(_ context.Context, _ *QueryPendingBundlesRequest) (*QueryPendingBundlesResponse, error) {
+	bundles, err := m.keeper.PendingBundles()
+	if err != nil {
+		return nil, err
+	}
+	return &QueryPendingBundlesResponse{Bundles: bundles}, nil
 }
 
 func (m mevServer) SubmitBundle(ctx context.Context, bundle *MsgSubmitBundle) (*MsgSubmitBundleResponse, error) {
-	return m.keeper.SubmitBundle(ctx, bundle)
+	success, err := m.keeper.SubmitBundle(NewMsgSubmitBundle(bundle))
+	if err != nil {
+		return nil, err
+	}
+	return &MsgSubmitBundleResponse{Success: success}, nil
 }
 
 func StartServer(logger log.Logger,

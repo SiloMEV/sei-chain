@@ -7,8 +7,8 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/sei-protocol/sei-chain/app"
+	mevbase "github.com/sei-protocol/sei-chain/mev"
 	"github.com/sei-protocol/sei-chain/x/mev"
 	"github.com/sei-protocol/sei-chain/x/mev/types"
 )
@@ -33,13 +33,12 @@ func TestBasicModule(t *testing.T) {
 
 func TestQueryPendingBundles(t *testing.T) {
 	app := app.Setup(false, false)
-	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	// Query pending bundles
-	res, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &types.QueryPendingBundlesRequest{})
+	res, err := app.MevKeeper.PendingBundles()
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, 0, len(res.Bundles))
+	require.Equal(t, 0, len(res))
 }
 
 func TestSubmitBundle(t *testing.T) {
@@ -47,24 +46,23 @@ func TestSubmitBundle(t *testing.T) {
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	// Create a test bundle
-	bundle := types.Bundle{
+	bundle := mevbase.Bundle{
 		Sender:    "test_sender",
 		Txs:       [][]byte{[]byte("tx1"), []byte("tx2")},
 		BlockNum:  100,
 		Timestamp: ctx.BlockTime().Unix(),
 	}
 
-	msg := types.NewMsgSubmitBundle(bundle)
-	res, err := app.MevKeeper.SubmitBundle(ctx.Context(), msg)
+	res, err := app.MevKeeper.SubmitBundle(bundle)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.True(t, res.Success)
+	require.True(t, res)
 
 	// Verify bundle was stored
-	queryRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &types.QueryPendingBundlesRequest{})
+	queryRes, err := app.MevKeeper.PendingBundles()
 	require.NoError(t, err)
-	require.Equal(t, 1, len(queryRes.Bundles))
-	require.Equal(t, bundle.Txs, queryRes.Bundles[0].Txs)
+	require.Equal(t, 1, len(queryRes))
+	require.Equal(t, bundle.Txs, queryRes[0].Txs)
 }
 
 func TestModuleRegistration(t *testing.T) {

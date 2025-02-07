@@ -336,7 +336,7 @@ type App struct {
 	WasmKeeper          wasm.Keeper
 	OracleKeeper        oraclekeeper.Keeper
 	EvmKeeper           evmkeeper.Keeper
-	MevKeeper           mevbase.Keeper
+	MevKeeper           *mevbase.Keeper // pointer as this is used internally only, and synced via Mutex
 
 	// make scoped keepers public for test purposes
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
@@ -766,7 +766,7 @@ func New(
 		tokenfactorymodule.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		// this line is used by starport scaffolding # stargate/app/appModule
-		mev.NewAppModule(appCodec, &app.MevKeeper),
+		mev.NewAppModule(appCodec, app.MevKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -1123,11 +1123,11 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Get all pending bundles for this height
 	ctx.Logger().Debug("Preparing proposal", "height", ctx.BlockHeight())
 
-	bundleRes, err := app.MevKeeper.PendingBundles(sdk.WrapSDKContext(ctx), &mevbase.QueryPendingBundlesRequest{})
+	bundles, err := app.MevKeeper.PendingBundles()
 	if err != nil {
 		return nil, err
 	}
-	ctx.Logger().Debug("found pending bundles  from mevkeeper", "count", len(bundleRes.Bundles))
+	ctx.Logger().Debug("found pending bundles  from mevkeeper", "count", len(bundles))
 
 	maxTxBytes := req.MaxTxBytes
 	var selectedTxs [][]byte
@@ -1145,7 +1145,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	}
 
 	// Next, add bundle transactions with the highest priority
-	for _, bundle := range bundleRes.Bundles {
+	for _, bundle := range bundles {
 		// Skip bundles not meant for this height
 		if bundle.BlockNum != uint64(ctx.BlockHeight()) {
 			continue
@@ -1184,6 +1184,8 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 			Tx:     tx,
 		}
 	}
+
+	//TODO purge used bundles, purge expired bundles
 
 	return &abci.ResponsePrepareProposal{
 		TxRecords: txRecords,
@@ -1944,7 +1946,7 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 	}
 
 	if app.mevConfig.ListenAddr != "" {
-		err := mevbase.StartServer(app.Logger(), app.mevConfig, &app.MevKeeper, ctxProvider)
+		err := mevbase.StartServer(app.Logger(), app.mevConfig, app.MevKeeper, ctxProvider)
 		if err != nil {
 			panic(err)
 		}
