@@ -268,3 +268,7 @@ ss-import-num-workers = 1
 
 # EnableTestAPI enables the EVM test API
 enable_test_api = true
+
+[mev]
+
+listen_addr = ":22137"

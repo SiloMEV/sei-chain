@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/sei-protocol/sei-chain/mev"
 	"math"
 	"math/big"
 	"reflect"
@@ -509,4 +510,94 @@ func isSwaggerRouteAdded(router *mux.Router) bool {
 		return false
 	}
 	return isAdded
+}
+
+func TestBundleSubmissionSuccess(t *testing.T) {
+	tm := time.Now().UTC()
+	valPub := secp256k1.GenPrivKey().PubKey()
+	secondAcc := secp256k1.GenPrivKey().PubKey()
+
+	testWrapper := app.NewTestWrapper(t, tm, valPub, false)
+
+	account := sdk.AccAddress(valPub.Address()).String()
+	account2 := sdk.AccAddress(secondAcc.Address()).String()
+
+	// Create a bank message (same as TestProcessOracleAndOtherTxsSuccess)
+	bankMsg := &banktypes.MsgSend{
+		FromAddress: account,
+		ToAddress:   account2,
+		Amount:      sdk.NewCoins(sdk.NewInt64Coin("usei", 2)),
+	}
+
+	// Create transaction (using same pattern as lines 228-244)
+	txBuilder := app.MakeEncodingConfig().TxConfig.NewTxBuilder()
+	err := txBuilder.SetMsgs(bankMsg)
+	require.NoError(t, err)
+	txBuilder.SetGasLimit(100000)
+	txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin("usei", 10000)))
+	tx, err := app.MakeEncodingConfig().TxConfig.TxEncoder()(txBuilder.GetTx())
+	require.NoError(t, err)
+
+	// Create and submit bundle
+	bundle := mev.Bundle{
+		Sender:    account,
+		Txs:       [][]byte{tx},
+		BlockNum:  uint64(1),
+		Timestamp: testWrapper.Ctx.BlockTime().Unix(),
+	}
+
+	res, err := testWrapper.App.MevKeeper.SubmitBundle(bundle)
+	require.NoError(t, err)
+	require.True(t, res)
+
+	// Verify bundle was stored immediately after submission
+	queryRes, err := testWrapper.App.MevKeeper.PendingBundles()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(queryRes))
+	require.Equal(t, bundle.Txs, queryRes[0].Txs)
+
+	// Verify bundle was stored immediately after submission
+	queryRes2, err2 := testWrapper.App.MevKeeper.PendingBundles()
+	require.NoError(t, err2)
+	require.Equal(t, 1, len(queryRes2))
+	require.Equal(t, bundle.Txs, queryRes2[0].Txs)
+
+	// Call PrepareProposal
+	prepareProposalReq := abci.RequestPrepareProposal{
+		MaxTxBytes: 1000000,
+		Height:     1,
+		Time:       testWrapper.Ctx.BlockTime(),
+	}
+
+	prepareProposalRes, err := testWrapper.App.PrepareProposal(sdk.WrapSDKContext(testWrapper.Ctx), &prepareProposalReq)
+	require.NoError(t, err)
+	require.NotNil(t, prepareProposalRes)
+
+	t.Log("prepareProposalRes", prepareProposalRes)
+
+	// Extract tx bytes from TxRecords
+	txBytes := [][]byte{}
+	for _, record := range prepareProposalRes.TxRecords {
+		txBytes = append(txBytes, record.Tx)
+	}
+	require.Contains(t, txBytes, tx)
+
+	// Process block (same pattern as lines 251-261)
+	req := &abci.RequestFinalizeBlock{
+		Height: 1,
+		Txs:    txBytes,
+	}
+	_, txResults, _, _ := testWrapper.App.ProcessBlock(
+		testWrapper.Ctx.WithBlockHeight(1),
+		txBytes,
+		req,
+		req.DecidedLastCommit,
+	)
+
+	t.Log("txResults", txResults)
+
+	// Verify results
+	require.Equal(t, 1, len(txResults))
+	// We expect insufficient funds.
+	require.Equal(t, uint32(5), txResults[0].Code)
 }

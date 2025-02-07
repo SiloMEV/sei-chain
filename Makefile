@@ -7,6 +7,7 @@ BUILDDIR ?= $(CURDIR)/build
 INVARIANT_CHECK_INTERVAL ?= $(INVARIANT_CHECK_INTERVAL:-0)
 export PROJECT_HOME=$(shell git rev-parse --show-toplevel)
 export GO_PKG_PATH=$(HOME)/go/pkg
+export GO_MOD_CACHE=$(shell go env GOMODCACHE)
 export GO111MODULE = on
 
 # process build tags
