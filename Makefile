@@ -102,8 +102,6 @@ clean:
 build-loadtest:
 	go build -o build/loadtest ./loadtest/
 
-mev-proto:
-	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative --go-grpc_out=. mev/proto/server.proto
 
 ###############################################################################
 ###                       Local testing using docker container              ###
