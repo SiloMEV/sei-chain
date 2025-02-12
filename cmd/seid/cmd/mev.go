@@ -3,10 +3,10 @@ package cmd
 import (
 	"github.com/sei-protocol/sei-chain/mev"
 	"github.com/sei-protocol/sei-chain/mev/cli"
-	"github.com/spf13/cobra"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 
 	//nolint:gosec,G108
+	"github.com/spf13/cobra"
 	_ "net/http/pprof"
 )
 
@@ -22,7 +22,7 @@ func MEVCmd(defaultMEVRPCAddr string) *cobra.Command {
 	cmd.PersistentFlags().StringP(tmcli.OutputFlag, "o", "text", "Output format (text|json)")
 
 	cmd.AddCommand(cli.CmdPendingBundles())
-	cmd.AddCommand(cli.CmdSubmitBundles())
+	//cmd.AddCommand(cli.CmdSubmitBundles())
 
 	return cmd
 }

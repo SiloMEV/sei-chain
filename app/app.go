@@ -1123,11 +1123,12 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Get all pending bundles for this height
 	ctx.Logger().Debug("Preparing proposal", "height", ctx.BlockHeight())
 
-	bundles, err := app.MevKeeper.PendingBundles()
-	if err != nil {
-		return nil, err
+	bundles := app.MevKeeper.PendingBundles(ctx.BlockHeight())
+
+	if len(bundles) > 0 {
+		// TODO remove this, just for debug
+		ctx.Logger().Error("found pending bundles from mevkeeper", "count", len(bundles))
 	}
-	ctx.Logger().Debug("found pending bundles  from mevkeeper", "count", len(bundles))
 
 	maxTxBytes := req.MaxTxBytes
 	var selectedTxs [][]byte
@@ -1147,20 +1148,20 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Next, add bundle transactions with the highest priority
 	for _, bundle := range bundles {
 		// Skip bundles not meant for this height
-		if bundle.BlockNum != uint64(ctx.BlockHeight()) {
+		if bundle.BlockHeight != uint64(ctx.BlockHeight()) {
 			continue
 		}
 
 		// Calculate total size of this bundle
 		bundleSize := int64(0)
-		for _, txStr := range bundle.Txs {
+		for _, txStr := range bundle.Transactions {
 			bundleSize += int64(len(txStr))
 		}
 
 		// Check if entire bundle fits
 		if selectedTxsTotalSize+bundleSize <= maxTxBytes {
 			// Add all transactions from this bundle
-			for _, tx := range bundle.Txs {
+			for _, tx := range bundle.Transactions {
 				//txBytes := []byte(txStr)
 				selectedTxs = append(selectedTxs, tx)
 			}
@@ -1945,12 +1946,21 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 		}
 	}
 
-	if app.mevConfig.ListenAddr != "" {
-		err := mevbase.StartServer(app.Logger(), app.mevConfig, app.MevKeeper, ctxProvider)
+	//if app.mevConfig.ListenAddr != "" {
+	//	err := mevbase.StartServer(app.Logger(), app.mevConfig, app.MevKeeper, ctxProvider)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//}
+
+	fmt.Printf("MEV RPC Poller address %s\n", app.mevConfig.ServerAddr)
+	if app.mevConfig.ServerAddr != "" {
+		_, err := mevbase.NewPoller(app.Logger(), app.mevConfig, app.MevKeeper, func() int64 { return app.LastBlockHeight() })
 		if err != nil {
 			panic(err)
 		}
 	}
+
 }
 
 // RegisterSwaggerAPI registers swagger route with API Server

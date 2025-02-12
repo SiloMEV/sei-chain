@@ -1,4 +1,14 @@
 services:
+  silo-server:
+    platform: linux/amd64
+    container_name: silo-server
+    image: "silo-server:latest"
+    ports:
+      - "22137:22137"
+    networks:
+      localnet:
+        ipv4_address: 192.168.10.9
+
   node0:
     platform: linux/amd64
     container_name: sei-node-0
@@ -8,7 +18,6 @@ services:
       - "26656-26658:26656-26658"
       - "9090-9091:9090-9091"
       - "8545-8546:8545-8546"
-      - "22137:22137"
     environment:
       - ID=0
       - CLUSTER_SIZE=4
@@ -36,7 +45,6 @@ services:
     ports:
       - "26659-26661:26656-26658"
       - "9092-9093:9090-9091"
-      - "22138:22137"
     environment:
       - ID=1
       - CLUSTER_SIZE=4
@@ -71,7 +79,6 @@ services:
     ports:
       - "26662-26664:26656-26658"
       - "9094-9095:9090-9091"
-      - "22139:22137"
     volumes:
       - "${PROJECT_HOME}:/sei-protocol/sei-chain:Z"
       - "${PROJECT_HOME}/../sei-tendermint:/sei-protocol/sei-tendermint:Z"
@@ -99,7 +106,6 @@ services:
     ports:
       - "26665-26667:26656-26658"
       - "9096-9097:9090-9091"
-      - "22140:22137"
     volumes:
       - "${PROJECT_HOME}:/sei-protocol/sei-chain:Z"
       - "${PROJECT_HOME}/../sei-tendermint:/sei-protocol/sei-tendermint:Z"

@@ -272,3 +272,5 @@ enable_test_api = true
 [mev]
 
 listen_addr = ":22137"
+
+server_addr = "192.168.10.9:22138"

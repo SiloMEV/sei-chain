@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/sei-protocol/sei-chain/mev"
+	types2 "github.com/m4ksio/silo-mev-protobuf-go/mev/v1"
 	"math"
 	"math/big"
 	"reflect"
@@ -539,33 +539,30 @@ func TestBundleSubmissionSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create and submit bundle
-	bundle := mev.Bundle{
-		Sender:    account,
-		Txs:       [][]byte{tx},
-		BlockNum:  uint64(1),
-		Timestamp: testWrapper.Ctx.BlockTime().Unix(),
+	height := int64(1)
+	bundle := &types2.Bundle{
+		Transactions: [][]byte{tx},
+		BlockHeight:  uint64(height),
 	}
 
-	res, err := testWrapper.App.MevKeeper.SubmitBundle(bundle)
+	res, err := testWrapper.App.MevKeeper.AddBundle(height, bundle)
 	require.NoError(t, err)
 	require.True(t, res)
 
 	// Verify bundle was stored immediately after submission
-	queryRes, err := testWrapper.App.MevKeeper.PendingBundles()
-	require.NoError(t, err)
+	queryRes := testWrapper.App.MevKeeper.PendingBundles(height)
 	require.Equal(t, 1, len(queryRes))
-	require.Equal(t, bundle.Txs, queryRes[0].Txs)
+	require.Equal(t, bundle.Transactions, queryRes[0].Transactions)
 
 	// Verify bundle was stored immediately after submission
-	queryRes2, err2 := testWrapper.App.MevKeeper.PendingBundles()
-	require.NoError(t, err2)
+	queryRes2 := testWrapper.App.MevKeeper.PendingBundles(height)
 	require.Equal(t, 1, len(queryRes2))
-	require.Equal(t, bundle.Txs, queryRes2[0].Txs)
+	require.Equal(t, bundle.Transactions, queryRes2[0].Transactions)
 
 	// Call PrepareProposal
 	prepareProposalReq := abci.RequestPrepareProposal{
 		MaxTxBytes: 1000000,
-		Height:     1,
+		Height:     height,
 		Time:       testWrapper.Ctx.BlockTime(),
 	}
 
@@ -584,11 +581,11 @@ func TestBundleSubmissionSuccess(t *testing.T) {
 
 	// Process block (same pattern as lines 251-261)
 	req := &abci.RequestFinalizeBlock{
-		Height: 1,
+		Height: height,
 		Txs:    txBytes,
 	}
 	_, txResults, _, _ := testWrapper.App.ProcessBlock(
-		testWrapper.Ctx.WithBlockHeight(1),
+		testWrapper.Ctx.WithBlockHeight(height),
 		txBytes,
 		req,
 		req.DecidedLastCommit,

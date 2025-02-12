@@ -1,11 +1,14 @@
-- name: Test MEV Module
+- name: MEV Submition
   inputs:
     - name: Query Pending Bundles
       cmd: seid mev pending-bundles --output json | jq ".bundles | length"
       env: QUERY_BUNDLE_EMPTY
+    - name: Latest block height
+      cmd: seid status | jq -r .SyncInfo.latest_block_height
+      env: LATEST_BLOCK_HEIGHT
     - name: Submit Bundle
       cmd: |
-        seid mev submit-bundle --output json "[\"a29rbw==\", \"Y3dpcg==\"]" 100 | jq .success
+        seid mev submit-bundle --output json "[\"a29rbw==\", \"Y3dpcg==\"]" $((LATEST_BLOCK_HEIGHT+5)) | jq .success
       env: SUBMIT_BUNDLE
     - name: Query Pending Bundles
       cmd: seid mev pending-bundles --output json | jq ".bundles | length"
@@ -15,8 +18,30 @@
   verifiers:
 #      # Add comments for what should the expected result
       - type: eval
-        expr: QUERY_BUNDLE_EMPTY == 0
-      - type: eval
         expr: SUBMIT_BUNDLE == "true"
       - type: eval
-        expr: QUERY_BUNDLE_ONE == 1
+        expr: QUERY_BUNDLE_ONE == QUERY_BUNDLE_EMPTY + 1
+
+
+- name: MEV Bundle inclusion
+  inputs:
+    - name: Latest block height
+      cmd: seid status | jq -r .SyncInfo.latest_block_height
+      env: LATEST_BLOCK_HEIGHT
+    - name: Submit Bundle
+      cmd: seid mev submit-bundle --output json "[\"a29rbw==\", \"Y3dpcg==\"]" $((LATEST_BLOCK_HEIGHT+5))
+    - name: Wait for block production
+      cmd: sleep 6
+
+    - name: Query block
+      cmd: seid query block 
+      env: QUERY_BUNDLE_ONE
+
+
+  verifiers:
+    #      # Add comments for what should the expected result
+    - type: eval
+      expr: SUBMIT_BUNDLE == "true"
+    - type: eval
+      expr: QUERY_BUNDLE_ONE == QUERY_BUNDLE_EMPTY + 1
+
