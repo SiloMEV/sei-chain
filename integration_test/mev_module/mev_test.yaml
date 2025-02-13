@@ -1,47 +1,41 @@
-- name: MEV Submition
+- name: MEV Submission and inclusion
   inputs:
-    - name: Query Pending Bundles
-      cmd: seid mev pending-bundles --output json | jq ".bundles | length"
-      env: QUERY_BUNDLE_EMPTY
     - name: Latest block height
-      cmd: seid status | jq -r .SyncInfo.latest_block_height
-      env: LATEST_BLOCK_HEIGHT
-    - name: Submit Bundle
+      cmd: echo $(( $(seid status | jq -r .SyncInfo.latest_block_height) + 5))
+      env: BLOCK_HEIGHT
+    - name: Submit Bundles
+      node: silo-server
       cmd: |
-        seid mev submit-bundle --output json "[\"a29rbw==\", \"Y3dpcg==\"]" $((LATEST_BLOCK_HEIGHT+5)) | jq .success
-      env: SUBMIT_BUNDLE
-    - name: Query Pending Bundles
-      cmd: seid mev pending-bundles --output json | jq ".bundles | length"
-      env: QUERY_BUNDLE_ONE
+        grpcurl -plaintext  -d "{\"height\": $BLOCK_HEIGHT, \"txs\": [{\"data\":\"a29rbw==\"}, {\"data\":\"Y3dpcg==\"}]}" localhost:22137 server.Server.Submit |
+        grpcurl -plaintext  -d "{\"height\": $BLOCK_HEIGHT, \"txs\": [{\"data\":\"a3Vya2k=\"}, {\"data\":\"ZHppdXJraQ==\"}]}" localhost:22137 server.Server.Submit
+    - name: Wait
+      cmd: sleep 6
+    - name: Get tx on node0
+      node: sei-node-0
+      cmd: seid query block $BLOCK_HEIGHT | jq ".block.data.txs | any(index(\"a29rbw==\"))"
+      env: NODE_0_TX
+    - name: Get tx on node1
+      node: sei-node-1
+      cmd: seid query block $BLOCK_HEIGHT | jq ".block.data.txs | any(index(\"Y3dpcg==\"))"
+      env: NODE_1_TX
+    - name: Get tx on node2
+      node: sei-node-2
+      cmd: seid query block $BLOCK_HEIGHT | jq ".block.data.txs | any(index(\"a3Vya2k=\"))"
+      env: NODE_2_TX
+    - name: Get tx on node3
+      node: sei-node-3
+      cmd: seid query block $BLOCK_HEIGHT | jq ".block.data.txs | any(index(\"ZHppdXJraQ==\"))"
+      env: NODE_3_TX
 
 
   verifiers:
 #      # Add comments for what should the expected result
       - type: eval
-        expr: SUBMIT_BUNDLE == "true"
+        expr: NODE_0_TX == "true"
       - type: eval
-        expr: QUERY_BUNDLE_ONE == QUERY_BUNDLE_EMPTY + 1
-
-
-- name: MEV Bundle inclusion
-  inputs:
-    - name: Latest block height
-      cmd: seid status | jq -r .SyncInfo.latest_block_height
-      env: LATEST_BLOCK_HEIGHT
-    - name: Submit Bundle
-      cmd: seid mev submit-bundle --output json "[\"a29rbw==\", \"Y3dpcg==\"]" $((LATEST_BLOCK_HEIGHT+5))
-    - name: Wait for block production
-      cmd: sleep 6
-
-    - name: Query block
-      cmd: seid query block 
-      env: QUERY_BUNDLE_ONE
-
-
-  verifiers:
-    #      # Add comments for what should the expected result
-    - type: eval
-      expr: SUBMIT_BUNDLE == "true"
-    - type: eval
-      expr: QUERY_BUNDLE_ONE == QUERY_BUNDLE_EMPTY + 1
+        expr: NODE_1_TX == "true"
+      - type: eval
+        expr: NODE_2_TX == "true"
+      - type: eval
+        expr: NODE_3_TX == "true"
 

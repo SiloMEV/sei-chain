@@ -273,4 +273,5 @@ enable_test_api = true
 
 listen_addr = ":22137"
 
-server_addr = "192.168.10.9:22138"
+# Disable MEV by default
+server_addr = ""

@@ -1,13 +1,4 @@
 services:
-  silo-server:
-    platform: linux/amd64
-    container_name: silo-server
-    image: "silo-server:latest"
-    ports:
-      - "22137:22137"
-    networks:
-      localnet:
-        ipv4_address: 192.168.10.9
 
   node0:
     platform: linux/amd64
