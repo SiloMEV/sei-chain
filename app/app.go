@@ -1134,6 +1134,8 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	var selectedTxs [][]byte
 	var selectedTxsTotalSize = int64(0)
 	var remainingTxs [][]byte
+	// map tx hash to index in remainingTxs
+	var remainingTxsMap = make(map[string]int)
 
 	// First, add any system transactions (governance, etc.)
 	for _, tx := range req.Txs {
@@ -1142,6 +1144,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 			selectedTxsTotalSize += int64(len(tx))
 		} else {
 			remainingTxs = append(remainingTxs, tx)
+			remainingTxsMap[string(tx)] = len(remainingTxs) - 1
 		}
 	}
 
@@ -1164,6 +1167,13 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 			for _, tx := range bundle.Transactions {
 				//txBytes := []byte(txStr)
 				selectedTxs = append(selectedTxs, tx)
+
+				//remove tx from remaining if it was already in a bundle
+				index, has := remainingTxsMap[string(tx)]
+				if has {
+					remainingTxs = append(remainingTxs[:index], remainingTxs[index+1:]...)
+					delete(remainingTxsMap, string(tx))
+				}
 			}
 			selectedTxsTotalSize += bundleSize
 		}
@@ -1624,7 +1634,7 @@ func (app *App) BuildDependenciesAndRunTxs(ctx sdk.Context, txs [][]byte, typedT
 	// 	txResults, ctx = app.ProcessTxs(ctx, txs, typedTxs, dependencyDag, app.ProcessBlockConcurrent, absoluteTxIndices)
 	// case acltypes.ErrGovMsgInBlock:
 	// 	ctx.Logger().Info(fmt.Sprintf("Gov msg found while building DAG, processing synchronously: %s", err))
-	// 	txResults = app.ProcessBlockSynchronous(ctx, txs, typedTxs, absoluteTxIndices)
+	// 	txResults = app.ProcessBlockSynchronous(ctx, txs, typedTxSetPrepareProposalHandlers, absoluteTxIndices)
 	// 	metrics.IncrDagBuildErrorCounter(metrics.GovMsgInBlock)
 	// default:
 	// 	ctx.Logger().Error(fmt.Sprintf("Error while building DAG, processing synchronously: %s", err))
