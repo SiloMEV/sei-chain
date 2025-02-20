@@ -156,6 +156,10 @@ import (
 	// unnamed import of statik for openapi/swagger UI support
 	_ "github.com/sei-protocol/sei-chain/docs/swagger"
 	ssconfig "github.com/sei-protocol/sei-db/config"
+
+	mevbase "github.com/sei-protocol/sei-chain/mev"
+	mev "github.com/sei-protocol/sei-chain/x/mev"
+	mevtypes "github.com/sei-protocol/sei-chain/x/mev/types"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -207,6 +211,7 @@ var (
 		wasm.AppModuleBasic{},
 		epochmodule.AppModuleBasic{},
 		tokenfactorymodule.AppModuleBasic{},
+		mev.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
@@ -224,6 +229,7 @@ var (
 		wasm.ModuleName:                {authtypes.Burner},
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner},
 		tokenfactorytypes.ModuleName:   {authtypes.Minter, authtypes.Burner},
+		mevtypes.ModuleName:            nil,
 		// this line is used by starport scaffolding # stargate/app/maccPerms
 	}
 
@@ -330,6 +336,7 @@ type App struct {
 	WasmKeeper          wasm.Keeper
 	OracleKeeper        oraclekeeper.Keeper
 	EvmKeeper           evmkeeper.Keeper
+	MevKeeper           *mevbase.Keeper // pointer as this is used internally only, and synced via Mutex
 
 	// make scoped keepers public for test purposes
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
@@ -364,6 +371,7 @@ type App struct {
 
 	encodingConfig        appparams.EncodingConfig
 	evmRPCConfig          evmrpc.Config
+	mevConfig             mevbase.Config
 	lightInvarianceConfig LightInvarianceConfig
 
 	genesisImportConfig genesistypes.GenesisImportConfig
@@ -543,6 +551,13 @@ func New(
 		app.DistrKeeper,
 	)
 
+	keys[mevtypes.StoreKey] = storetypes.NewKVStoreKey(mevtypes.StoreKey)
+
+	app.MevKeeper = mevbase.NewKeeper(
+		appCodec,
+		keys[mevtypes.StoreKey],
+	)
+
 	// The last arguments can contain custom message handlers, and custom query handlers,
 	// if we want to allow any custom callbacks
 	supportedFeatures := "iterator,staking,stargate,sei"
@@ -608,6 +623,10 @@ func New(
 	app.evmRPCConfig, err = evmrpc.ReadConfig(appOpts)
 	if err != nil {
 		panic(fmt.Sprintf("error reading EVM config due to %s", err))
+	}
+	app.mevConfig, err = mevbase.ReadConfig(appOpts)
+	if err != nil {
+		panic(fmt.Sprintf("error reading MEV config due to %s", err))
 	}
 	evmQueryConfig, err := querier.ReadConfig(appOpts)
 	if err != nil {
@@ -747,6 +766,7 @@ func New(
 		tokenfactorymodule.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		// this line is used by starport scaffolding # stargate/app/appModule
+		mev.NewAppModule(appCodec, app.MevKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -778,6 +798,7 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		acltypes.ModuleName,
+		mevtypes.ModuleName,
 	)
 
 	app.mm.SetOrderMidBlockers(
@@ -809,6 +830,7 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		acltypes.ModuleName,
+		mevtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -841,6 +863,7 @@ func New(
 		wasm.ModuleName,
 		evmtypes.ModuleName,
 		acltypes.ModuleName,
+		mevtypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	)
 
@@ -1096,12 +1119,89 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, app.genesisImportConfig)
 }
 
-func (app *App) PrepareProposalHandler(_ sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	// Get all pending bundles for this height
+	ctx.Logger().Debug("Preparing proposal", "height", ctx.BlockHeight())
+
+	bundles := app.MevKeeper.PendingBundles(ctx.BlockHeight())
+
+	if len(bundles) > 0 {
+		ctx.Logger().Debug("found pending bundles from mevkeeper", "count", len(bundles), "height", ctx.BlockHeight())
+	}
+
+	maxTxBytes := req.MaxTxBytes
+	selectedTxs := make([]*abci.TxRecord, 0)
+
+	var selectedTxsTotalSize = int64(0)
+	var remainingTxs [][]byte
+
+	// First, add any system transactions (governance, etc.)
+	for _, tx := range req.Txs {
+		if app.isSystemTx(tx) {
+			selectedTxs = append(selectedTxs, &abci.TxRecord{
+				Action: abci.TxRecord_UNMODIFIED,
+				Tx:     tx,
+			})
+
+			selectedTxsTotalSize += int64(len(tx))
+		} else {
+			remainingTxs = append(remainingTxs, tx)
+		}
+	}
+
+	// Next, add bundle transactions with the highest priority
+	for _, bundle := range bundles {
+		// Skip bundles not meant for this height
+		if bundle.BlockHeight != uint64(ctx.BlockHeight()) {
+			continue
+		}
+
+		// Calculate total size of this bundle
+		bundleSize := int64(0)
+		for _, txStr := range bundle.Transactions {
+			bundleSize += int64(len(txStr))
+		}
+
+		// Check if entire bundle fits
+		if selectedTxsTotalSize+bundleSize <= maxTxBytes {
+			// Add all transactions from this bundle
+			for _, tx := range bundle.Transactions {
+				selectedTxs = append(selectedTxs, &abci.TxRecord{
+					Action: abci.TxRecord_UNMODIFIED,
+					Tx:     tx,
+				})
+			}
+			selectedTxsTotalSize += bundleSize
+		}
+	}
+
+	// Finally, add remaining transactions up to size limit
+	for _, tx := range remainingTxs {
+		if selectedTxsTotalSize+int64(len(tx)) <= maxTxBytes {
+			selectedTxs = append(selectedTxs, &abci.TxRecord{
+				Action: abci.TxRecord_UNMODIFIED,
+				Tx:     tx,
+			})
+			selectedTxsTotalSize += int64(len(tx))
+			if selectedTxsTotalSize >= maxTxBytes {
+				break
+			}
+		}
+	}
+
+	//TODO purge used bundles, purge expired bundles
+
 	return &abci.ResponsePrepareProposal{
-		TxRecords: utils.Map(req.Txs, func(tx []byte) *abci.TxRecord {
-			return &abci.TxRecord{Action: abci.TxRecord_UNMODIFIED, Tx: tx}
-		}),
+		TxRecords: selectedTxs,
 	}, nil
+}
+
+func (app *App) isSystemTx(tx []byte) bool {
+	// Implement system transaction detection logic
+	// This could check for specific message types that should always be included
+	// like governance votes, IBC packets, etc.
+	// TODO get SEI team input, which tx should be put before bundles in a block
+	return false
 }
 
 func (app *App) GetOptimisticProcessingInfo() *OptimisticProcessingInfo {
@@ -1849,6 +1949,14 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 			panic(err)
 		}
 	}
+
+	if app.mevConfig.ServerAddr != "" {
+		_, err := mevbase.NewPoller(app.Logger(), app.mevConfig, app.MevKeeper, app.GetCheckCtx().Context(), app.LastBlockHeight)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 }
 
 // RegisterSwaggerAPI registers swagger route with API Server
@@ -1950,6 +2058,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(evmtypes.ModuleName)
 	paramsKeeper.Subspace(epochmoduletypes.ModuleName)
 	paramsKeeper.Subspace(tokenfactorytypes.ModuleName)
+	paramsKeeper.Subspace(mevtypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 
 	return paramsKeeper

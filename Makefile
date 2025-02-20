@@ -7,6 +7,7 @@ BUILDDIR ?= $(CURDIR)/build
 INVARIANT_CHECK_INTERVAL ?= $(INVARIANT_CHECK_INTERVAL:-0)
 export PROJECT_HOME=$(shell git rev-parse --show-toplevel)
 export GO_PKG_PATH=$(HOME)/go/pkg
+export GO_MOD_CACHE=$(shell go env GOMODCACHE)
 export GO111MODULE = on
 
 # process build tags
@@ -193,6 +194,12 @@ docker-cluster-start: docker-cluster-stop build-docker-node
 	@mkdir -p $(shell go env GOCACHE)
 	@cd docker && USERID=$(shell id -u) GROUPID=$(shell id -g) GOCACHE=$(shell go env GOCACHE) NUM_ACCOUNTS=10 INVARIANT_CHECK_INTERVAL=${INVARIANT_CHECK_INTERVAL} UPGRADE_VERSION_LIST=${UPGRADE_VERSION_LIST} docker compose up
 
+docker-mev-cluster-start: docker-mev-cluster-stop build-docker-node
+	@rm -rf $(PROJECT_HOME)/build/generated
+	@mkdir -p $(shell go env GOPATH)/pkg/mod
+	@mkdir -p $(shell go env GOCACHE)
+	@cd docker && USERID=$(shell id -u) GROUPID=$(shell id -g) GOCACHE=$(shell go env GOCACHE) NUM_ACCOUNTS=10 INVARIANT_CHECK_INTERVAL=${INVARIANT_CHECK_INTERVAL} UPGRADE_VERSION_LIST=${UPGRADE_VERSION_LIST} docker compose -f docker-compose.yml -f docker-compose.mev.yml up
+
 .PHONY: localnet-start
 
 # Use this to skip the seid build process
@@ -204,6 +211,10 @@ docker-cluster-start-skipbuild: docker-cluster-stop build-docker-node
 # Stop 4-node docker containers
 docker-cluster-stop:
 	@cd docker && USERID=$(shell id -u) GROUPID=$(shell id -g) GOCACHE=$(shell go env GOCACHE) docker compose down
+
+docker-mev-cluster-stop:
+	@cd docker && USERID=$(shell id -u) GROUPID=$(shell id -g) GOCACHE=$(shell go env GOCACHE) docker compose -f docker-compose.yml -f docker-compose.mev.yml down
+
 .PHONY: localnet-stop
 
 
