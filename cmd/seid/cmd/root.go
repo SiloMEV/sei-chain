@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/sei-protocol/sei-chain/mev"
 	"io"
 	"math"
 	"math/rand"
@@ -164,7 +163,6 @@ func initRootCmd(
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
 		ReplayCmd(app.DefaultNodeHome),
-		MEVCmd(mev.DefaultConfig.ListenAddr),
 		BlocktestCmd(app.DefaultNodeHome),
 	)
 }

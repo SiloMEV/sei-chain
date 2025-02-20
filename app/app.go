@@ -798,7 +798,7 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		acltypes.ModuleName,
-		mevtypes.ModuleName, // Add here
+		mevtypes.ModuleName,
 	)
 
 	app.mm.SetOrderMidBlockers(
@@ -830,7 +830,7 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		acltypes.ModuleName,
-		mevtypes.ModuleName, // Add here
+		mevtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -1126,19 +1126,23 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	bundles := app.MevKeeper.PendingBundles(ctx.BlockHeight())
 
 	if len(bundles) > 0 {
-		// TODO remove this, just for debug
-		ctx.Logger().Error("found pending bundles from mevkeeper", "count", len(bundles))
+		ctx.Logger().Debug("found pending bundles from mevkeeper", "count", len(bundles), "height", ctx.BlockHeight())
 	}
 
 	maxTxBytes := req.MaxTxBytes
-	var selectedTxs [][]byte
+	selectedTxs := make([]*abci.TxRecord, 0)
+
 	var selectedTxsTotalSize = int64(0)
 	var remainingTxs [][]byte
 
 	// First, add any system transactions (governance, etc.)
 	for _, tx := range req.Txs {
 		if app.isSystemTx(tx) {
-			selectedTxs = append(selectedTxs, tx)
+			selectedTxs = append(selectedTxs, &abci.TxRecord{
+				Action: abci.TxRecord_UNMODIFIED,
+				Tx:     tx,
+			})
+
 			selectedTxsTotalSize += int64(len(tx))
 		} else {
 			remainingTxs = append(remainingTxs, tx)
@@ -1162,8 +1166,10 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		if selectedTxsTotalSize+bundleSize <= maxTxBytes {
 			// Add all transactions from this bundle
 			for _, tx := range bundle.Transactions {
-				//txBytes := []byte(txStr)
-				selectedTxs = append(selectedTxs, tx)
+				selectedTxs = append(selectedTxs, &abci.TxRecord{
+					Action: abci.TxRecord_UNMODIFIED,
+					Tx:     tx,
+				})
 			}
 			selectedTxsTotalSize += bundleSize
 		}
@@ -1172,24 +1178,21 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Finally, add remaining transactions up to size limit
 	for _, tx := range remainingTxs {
 		if selectedTxsTotalSize+int64(len(tx)) <= maxTxBytes {
-			selectedTxs = append(selectedTxs, tx)
+			selectedTxs = append(selectedTxs, &abci.TxRecord{
+				Action: abci.TxRecord_UNMODIFIED,
+				Tx:     tx,
+			})
 			selectedTxsTotalSize += int64(len(tx))
-		}
-	}
-
-	// Convert selectedTxs to TxRecords
-	txRecords := make([]*abci.TxRecord, len(selectedTxs))
-	for i, tx := range selectedTxs {
-		txRecords[i] = &abci.TxRecord{
-			Action: abci.TxRecord_UNMODIFIED,
-			Tx:     tx,
+			if selectedTxsTotalSize >= maxTxBytes {
+				break
+			}
 		}
 	}
 
 	//TODO purge used bundles, purge expired bundles
 
 	return &abci.ResponsePrepareProposal{
-		TxRecords: txRecords,
+		TxRecords: selectedTxs,
 	}, nil
 }
 
@@ -1197,6 +1200,7 @@ func (app *App) isSystemTx(tx []byte) bool {
 	// Implement system transaction detection logic
 	// This could check for specific message types that should always be included
 	// like governance votes, IBC packets, etc.
+	// TODO get SEI team input, which tx should be put before bundles in a block
 	return false
 }
 
@@ -1946,16 +1950,8 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 		}
 	}
 
-	//if app.mevConfig.ListenAddr != "" {
-	//	err := mevbase.StartServer(app.Logger(), app.mevConfig, app.MevKeeper, ctxProvider)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//}
-
-	fmt.Printf("MEV RPC Poller address %s\n", app.mevConfig.ServerAddr)
 	if app.mevConfig.ServerAddr != "" {
-		_, err := mevbase.NewPoller(app.Logger(), app.mevConfig, app.MevKeeper, func() int64 { return app.LastBlockHeight() })
+		_, err := mevbase.NewPoller(app.Logger(), app.mevConfig, app.MevKeeper, app.GetCheckCtx().Context(), app.LastBlockHeight)
 		if err != nil {
 			panic(err)
 		}

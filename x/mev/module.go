@@ -56,7 +56,7 @@ func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncod
 	if err := cdc.UnmarshalJSON(bz, &data); err != nil {
 		return fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err)
 	}
-	return nil
+	return data.Validate()
 }
 
 // ValidateGenesisStream performs genesis state validation for the mev module in a streaming fashion.
@@ -114,29 +114,14 @@ func (AppModule) Name() string {
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
 func NewHandler(k *mev.Keeper) sdk.Handler {
-	//msgServer := keeper.NewMsgServerImpl(k)
-
 	return func(ctx sdk.Context, msg sdk.Msg) (*sdk.Result, error) {
-
-		fmt.Println("MEV HANDLER MEV")
 
 		ctx = ctx.WithEventManager(sdk.NewEventManager())
 
 		switch msg := msg.(type) {
-		//case *types.MsgEVMTransaction:
-		//	res, err := msgServer.EVMTransaction(sdk.WrapSDKContext(ctx), msg)
-		//	return sdk.WrapServiceResult(ctx, res, err)
-		//case *types.MsgSend:
-		//	res, err := msgServer.Send(sdk.WrapSDKContext(ctx), msg)
-		//	return sdk.WrapServiceResult(ctx, res, err)
-		//case *types.MsgRegisterPointer:
-		//	res, err := msgServer.RegisterPointer(sdk.WrapSDKContext(ctx), msg)
-		//	return sdk.WrapServiceResult(ctx, res, err)
-		//case *types.MsgAssociateContractAddress:
-		//	res, err := msgServer.AssociateContractAddress(sdk.WrapSDKContext(ctx), msg)
-		//	return sdk.WrapServiceResult(ctx, res, err)
+		//supported types here
 		default:
-			errMsg := fmt.Sprintf("unrecognized %s message type MEV MEV MEV: %T", types.ModuleName, msg)
+			errMsg := fmt.Sprintf("unrecognized %s message type: %T", types.ModuleName, msg)
 			return nil, sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, errMsg)
 		}
 	}
@@ -161,7 +146,7 @@ func (am AppModule) LegacyQuerierHandler(legacyQuerierCdc *codec.LegacyAmino) sd
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) []abci.ValidatorUpdate {
 	var genesisState types.GenesisState
 	cdc.MustUnmarshalJSON(data, &genesisState)
-	return []abci.ValidatorUpdate{}
+	return nil
 }
 
 // ExportGenesis returns the exported genesis state as raw bytes for the mev module.

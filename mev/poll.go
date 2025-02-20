@@ -8,11 +8,14 @@ import (
 	"time"
 )
 
+const pollInterval = 200 * time.Millisecond
+
 type Poller struct {
 	client            types.BundleProviderClient
 	keeper            *Keeper
 	lastBlockProvider func() int64
 	logger            log.Logger
+	ctx               context.Context
 }
 
 func (p *Poller) run() {
@@ -31,7 +34,7 @@ func (p *Poller) run() {
 
 }
 
-func NewPoller(logger log.Logger, config Config, keeper *Keeper, lastBlockProvider func() int64) (*Poller, error) {
+func NewPoller(logger log.Logger, config Config, keeper *Keeper, ctx context.Context, lastBlockProvider func() int64) (*Poller, error) {
 
 	logger.Info("Starting bundle provider poller")
 
@@ -48,13 +51,19 @@ func NewPoller(logger log.Logger, config Config, keeper *Keeper, lastBlockProvid
 		keeper:            keeper,
 		lastBlockProvider: lastBlockProvider,
 		logger:            logger,
+		ctx:               ctx,
 	}
 
-	ticker := time.NewTicker(200 * time.Millisecond)
+	ticker := time.NewTicker(pollInterval)
 
 	go func() {
-		for range ticker.C {
-			p.run()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				p.run()
+			}
 		}
 	}()
 
