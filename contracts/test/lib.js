@@ -1,5 +1,6 @@
 const { exec } = require("child_process");
 const {ethers} = require("hardhat"); // Importing exec from child_process
+const axios = require("axios");
 
 const adminKeyName = "admin"
 
@@ -22,6 +23,7 @@ const ABI = {
         "event ApprovalForAll(address indexed owner, address indexed operator, bool approved)",
         "function name() view returns (string)",
         "function symbol() view returns (string)",
+        "function owner() view returns (address)",
         "function totalSupply() view returns (uint256)",
         "function tokenURI(uint256 tokenId) view returns (string)",
         "function royaltyInfo(uint256 tokenId, uint256 salePrice) view returns (address, uint256)",
@@ -42,6 +44,7 @@ const ABI = {
         "event URI(string _value, uint256 indexed _id)",
         "function name() view returns (string)",
         "function symbol() view returns (string)",
+        "function owner() view returns (address)",
         "function uri(uint256 _id) view returns (string)",
         "function royaltyInfo(uint256 tokenId, uint256 salePrice) view returns (address, uint256)",
         "function balanceOf(address _owner, uint256 _id) view returns (uint256)",
@@ -196,6 +199,19 @@ async function incrementPointerVersion(provider, pointerType, offset) {
     }
 }
 
+async function rawHttpDebugTraceWithCallTracer(txHash) {
+    const payload = {
+        jsonrpc: "2.0",
+        method: "debug_traceTransaction",
+        params: [txHash, {"tracer": "callTracer"}], // The second parameter is an optional trace config object
+        id: 1,
+    };
+    const response = await axios.post("http://localhost:8545", payload, {
+        headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+}
+
 async function createTokenFactoryTokenAndMint(name, amount, recipient, from=adminKeyName) {
     const command = `seid tx tokenfactory create-denom ${name} --from ${from} --gas=5000000 --fees=1000000usei -y --broadcast-mode block -o json`
     const output = await execute(command);
@@ -207,6 +223,28 @@ async function createTokenFactoryTokenAndMint(name, amount, recipient, from=admi
     const send_command = `seid tx bank send ${from} ${recipient} ${amount}${token_denom} --from ${from} --gas=5000000 --fees=1000000usei -y --broadcast-mode block -o json`
     await execute(send_command);
     return token_denom
+}
+
+async function getChainId() {
+    const nodeUrl = 'http://localhost:8545';
+    const response = await axios.post(nodeUrl, {
+        method: 'eth_chainId',
+        params: [],
+        id: 1,
+        jsonrpc: "2.0"
+    })
+    return response.data.result;
+}
+
+async function getGasPrice() {
+    const nodeUrl = 'http://localhost:8545';
+    const response = await axios.post(nodeUrl, {
+        method: 'eth_gasPrice',
+        params: [],
+        id: 1,
+        jsonrpc: "2.0"
+    })
+    return response.data.result;
 }
 
 async function getPointerForNative(name) {
@@ -335,14 +373,14 @@ async function instantiateWasm(codeId, adminAddr, label, args = {}, from=adminKe
     return getEventAttribute(response, "instantiate", "_contract_address");
 }
 
-async function proposeCW20toERC20Upgrade(erc20Address, cw20Address, title="erc20-pointer", version=99, description="erc20 pointer",fees="20000usei", from=adminKeyName) {
+async function proposeCW20toERC20Upgrade(erc20Address, cw20Address, title="erc20-pointer", version=99, description="erc20 pointer",fees="200000usei", from=adminKeyName) {
     const command = `seid tx evm add-cw-erc20-pointer "${title}" "${description}" ${erc20Address} ${version} 200000000usei ${cw20Address} --from ${from} --fees ${fees} -y -o json --broadcast-mode=block`
     const output = await execute(command);
     const proposalId = getEventAttribute(JSON.parse(output), "submit_proposal", "proposal_id")
     return await passProposal(proposalId)
 }
 
-async function passProposal(proposalId,  desposit="200000000usei", fees="20000usei", from=adminKeyName) {
+async function passProposal(proposalId,  desposit="200000000usei", fees="200000usei", from=adminKeyName) {
     if(await isDocker()) {
         await executeOnAllNodes(`seid tx gov vote ${proposalId} yes --from node_admin -b block -y --fees ${fees}`)
     } else {
@@ -379,7 +417,7 @@ async function registerPointerForERC721(erc721Address, fees="20000usei", from=ad
     return getEventAttribute(response, "pointer_registered", "pointer_address")
 }
 
-async function registerPointerForERC1155(erc1155Address, fees="20000usei", from=adminKeyName) {
+async function registerPointerForERC1155(erc1155Address, fees="200000usei", from=adminKeyName) {
     const command = `seid tx evm register-cw-pointer ERC1155 ${erc1155Address} --from ${from} --fees ${fees} --broadcast-mode block -y -o json`
     const output = await execute(command);
     const response = JSON.parse(output)
@@ -524,10 +562,13 @@ module.exports = {
     deployWasm,
     instantiateWasm,
     createTokenFactoryTokenAndMint,
+    getChainId,
+    getGasPrice,
     execute,
     getSeiAddress,
     getEvmAddress,
     queryWasm,
+    rawHttpDebugTraceWithCallTracer,
     executeWasm,
     getAdmin,
     setupSigners,
