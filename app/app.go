@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"plugin"
 	"strings"
 	"sync"
 	"time"
@@ -113,10 +114,14 @@ import (
 	"github.com/sei-protocol/sei-chain/app/upgrades"
 	v0upgrade "github.com/sei-protocol/sei-chain/app/upgrades/v0"
 	"github.com/sei-protocol/sei-chain/evmrpc"
+	"github.com/sei-protocol/sei-chain/mev"
 	"github.com/sei-protocol/sei-chain/precompiles"
 	"github.com/sei-protocol/sei-chain/utils"
 	"github.com/sei-protocol/sei-chain/utils/metrics"
 	"github.com/sei-protocol/sei-chain/wasmbinding"
+	ctmodule "github.com/sei-protocol/sei-chain/x/confidentialtransfers"
+	ctkeeper "github.com/sei-protocol/sei-chain/x/confidentialtransfers/keeper"
+	cttypes "github.com/sei-protocol/sei-chain/x/confidentialtransfers/types"
 	epochmodule "github.com/sei-protocol/sei-chain/x/epoch"
 	epochmodulekeeper "github.com/sei-protocol/sei-chain/x/epoch/keeper"
 	epochmoduletypes "github.com/sei-protocol/sei-chain/x/epoch/types"
@@ -212,6 +217,7 @@ var (
 		wasm.AppModuleBasic{},
 		epochmodule.AppModuleBasic{},
 		tokenfactorymodule.AppModuleBasic{},
+		ctmodule.AppModuleBasic{},
 		mev.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
@@ -230,6 +236,8 @@ var (
 		wasm.ModuleName:                {authtypes.Burner},
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner},
 		tokenfactorytypes.ModuleName:   {authtypes.Minter, authtypes.Burner},
+		// Confidential Transfers module is not live yet, but we add the permissions for testing
+		cttypes.ModuleName: 			nil,
 		mevtypes.ModuleName:            nil,
 		// this line is used by starport scaffolding # stargate/app/maccPerms
 	}
@@ -351,6 +359,8 @@ type App struct {
 	EpochKeeper epochmodulekeeper.Keeper
 
 	TokenFactoryKeeper tokenfactorykeeper.Keeper
+	// ConfidentialTransfers module is not live yet, but we add the keeper for testing
+	ConfidentialTransfersKeeper ctkeeper.Keeper
 
 	// mm is the module manager
 	mm *module.Manager
@@ -386,6 +396,8 @@ type App struct {
 	receiptStore seidb.StateStore
 
 	forkInitializer func(sdk.Context)
+
+	mevHandler mev.MEVHandler
 }
 
 type AppOption func(*App)
@@ -428,6 +440,8 @@ func New(
 		evmtypes.StoreKey, wasm.StoreKey,
 		epochmoduletypes.StoreKey,
 		tokenfactorytypes.StoreKey,
+		// ConfidentialTransfers module is not live yet, but we add the key for testing
+		cttypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientStoreKey)
@@ -560,6 +574,13 @@ func New(
 		app.DistrKeeper,
 	)
 
+	app.ConfidentialTransfersKeeper = ctkeeper.NewKeeper(
+		appCodec,
+		app.keys[cttypes.StoreKey],
+		app.GetSubspace(cttypes.ModuleName),
+		app.AccountKeeper,
+		app.BankKeeper)
+
 	keys[mevtypes.StoreKey] = storetypes.NewKVStoreKey(mevtypes.StoreKey)
 
 	app.MevKeeper = mevbase.NewKeeper(
@@ -624,7 +645,7 @@ func New(
 	app.EvmKeeper = *evmkeeper.NewKeeper(keys[evmtypes.StoreKey],
 		tkeys[evmtypes.TransientStoreKey], app.GetSubspace(evmtypes.ModuleName), app.receiptStore, app.BankKeeper,
 		&app.AccountKeeper, &app.StakingKeeper, app.TransferKeeper,
-		wasmkeeper.NewDefaultPermissionKeeper(app.WasmKeeper), &app.WasmKeeper)
+		wasmkeeper.NewDefaultPermissionKeeper(app.WasmKeeper), &app.WasmKeeper, &app.ConfidentialTransfersKeeper)
 	app.BankKeeper.RegisterRecipientChecker(app.EvmKeeper.CanAddressReceive)
 
 	bApp.SetPreCommitHandler(app.HandlePreCommit)
@@ -661,16 +682,26 @@ func New(
 		app.EvmKeeper.EthClient = ethclient.NewClient(rpcclient)
 	}
 	lightInvarianceConfig, err := ReadLightInvarianceConfig(appOpts)
-	if err != nil {
-		panic(fmt.Sprintf("error reading light invariance config due to %s", err))
-	}
+	check(err, "reading light invariance config")
 	app.lightInvarianceConfig = lightInvarianceConfig
 
 	genesisImportConfig, err := ReadGenesisImportConfig(appOpts)
-	if err != nil {
-		panic(fmt.Sprintf("error reading genesis import config due to %s", err))
-	}
+	check(err, "reading genesis import config")
 	app.genesisImportConfig = genesisImportConfig
+
+	mevConfig, err := mev.ReadMevConfig(appOpts)
+	check(err, "reading mev config")
+	if mevConfig.HandlerPluginPath != "" {
+		p, err := plugin.Open(mevConfig.HandlerPluginPath)
+		check(err, "loading mev plugin")
+		h, err := p.Lookup(mev.PluginObjectName)
+		check(err, "looking up mev handler")
+		typedHandler, ok := h.(mev.MEVHandler)
+		if !ok {
+			panic("MEV handler does not implement MEVHandler interface")
+		}
+		app.mevHandler = typedHandler
+	}
 
 	customDependencyGenerators := aclmapping.NewCustomDependencyGenerator()
 	aclOpts = append(aclOpts, aclkeeper.WithResourceTypeToStoreKeyMap(aclutils.ResourceTypeToStoreKeyMap))
@@ -732,7 +763,10 @@ func New(
 			app.IBCKeeper.ConnectionKeeper,
 			app.IBCKeeper.ChannelKeeper,
 			app.AccountKeeper,
+			app.ConfidentialTransfersKeeper,
+			ctkeeper.NewMsgServerImpl(app.ConfidentialTransfersKeeper),
 		)
+
 		app.EvmKeeper.SetCustomPrecompiles(customPrecompiles)
 	}
 
@@ -773,6 +807,7 @@ func New(
 		epochModule,
 		tokenfactorymodule.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
+		ctmodule.NewAppModule(app.ConfidentialTransfersKeeper),
 		// this line is used by starport scaffolding # stargate/app/appModule
 		mev.NewAppModule(appCodec, app.MevKeeper),
 	)
@@ -805,6 +840,7 @@ func New(
 		evmtypes.ModuleName,
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
+		cttypes.ModuleName,
 		acltypes.ModuleName,
 		mevtypes.ModuleName,
 	)
@@ -837,6 +873,7 @@ func New(
 		evmtypes.ModuleName,
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
+		cttypes.ModuleName,
 		acltypes.ModuleName,
 		mevtypes.ModuleName,
 	)
@@ -867,6 +904,7 @@ func New(
 		feegrant.ModuleName,
 		oracletypes.ModuleName,
 		tokenfactorytypes.ModuleName,
+		cttypes.ModuleName,
 		epochmoduletypes.ModuleName,
 		wasm.ModuleName,
 		evmtypes.ModuleName,
@@ -899,6 +937,7 @@ func New(
 		transferModule,
 		epochModule,
 		tokenfactorymodule.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
+		ctmodule.NewAppModule(app.ConfidentialTransfersKeeper),
 		// this line is used by starport scaffolding # stargate/app/appModule
 	)
 	app.sm.RegisterStoreDecoders()
@@ -1949,7 +1988,7 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 	tmservice.RegisterTendermintService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
 
 	if app.evmRPCConfig.HTTPEnabled {
-		evmHTTPServer, err := evmrpc.NewEVMHTTPServer(app.Logger(), app.evmRPCConfig, clientCtx.Client, &app.EvmKeeper, app.BaseApp, app.AnteHandler, app.RPCContextProvider, app.encodingConfig.TxConfig, DefaultNodeHome, nil)
+		evmHTTPServer, err := evmrpc.NewEVMHTTPServer(app.Logger(), app.evmRPCConfig, clientCtx.Client, &app.EvmKeeper, app.BaseApp, app.AnteHandler, app.RPCContextProvider, app.encodingConfig.TxConfig, DefaultNodeHome, nil, app.mevHandler)
 		if err != nil {
 			panic(err)
 		}
@@ -2099,6 +2138,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(evmtypes.ModuleName)
 	paramsKeeper.Subspace(epochmoduletypes.ModuleName)
 	paramsKeeper.Subspace(tokenfactorytypes.ModuleName)
+	paramsKeeper.Subspace(cttypes.ModuleName)
 	paramsKeeper.Subspace(mevtypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 
