@@ -747,6 +747,7 @@ func TestBundleSubmissionSuccess(t *testing.T) {
 		txBytes,
 		req,
 		req.DecidedLastCommit,
+		false,
 	)
 
 	t.Log("txResults", txResults)

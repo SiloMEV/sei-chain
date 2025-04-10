@@ -24,6 +24,7 @@ services:
       - "${PROJECT_HOME}/../go-ethereum:/sei-protocol/go-ethereum:Z"
       - "${GO_MOD_CACHE}:/root/go/pkg/mod:Z"
       - "${GOCACHE}:/root/.cache/go-build:Z"
+      - "${PROJECT_HOME}/../../sei-protocol/mev-demo/:/sei-protocol/mev/"
     networks:
       localnet:
         ipv4_address: 192.168.10.10
@@ -51,6 +52,7 @@ services:
       - "${PROJECT_HOME}/../go-ethereum:/sei-protocol/go-ethereum:Z"
       - "${GO_MOD_CACHE}:/root/go/pkg/mod:Z"
       - "${GOCACHE}:/root/.cache/go-build:Z"
+      - "${PROJECT_HOME}/../../sei-protocol/mev-demo/:/sei-protocol/mev/"
     networks:
       localnet:
         ipv4_address: 192.168.10.11
@@ -78,6 +80,7 @@ services:
       - "${PROJECT_HOME}/../go-ethereum:/sei-protocol/go-ethereum:Z"
       - "${GO_MOD_CACHE}:/root/go/pkg/mod:Z"
       - "${GOCACHE}:/root/.cache/go-build:Z"
+      - "${PROJECT_HOME}/../../sei-protocol/mev-demo/:/sei-protocol/mev/"
     networks:
       localnet:
         ipv4_address: 192.168.10.12
@@ -105,6 +108,7 @@ services:
       - "${PROJECT_HOME}/../go-ethereum:/sei-protocol/go-ethereum:Z"
       - "${GO_MOD_CACHE}:/root/go/pkg/mod:Z"
       - "${GOCACHE}:/root/.cache/go-build:Z"
+      - "${PROJECT_HOME}/../../sei-protocol/mev-demo/:/sei-protocol/mev/"
     networks:
       localnet:
         ipv4_address: 192.168.10.13

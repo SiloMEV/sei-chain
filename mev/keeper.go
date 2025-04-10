@@ -33,14 +33,14 @@ func (k *Keeper) AddBundle(height int64, bundle *types.Bundle) (bool, error) {
 	k.ephemeralMu.Lock()
 	defer k.ephemeralMu.Unlock()
 
-	if k.ephemeral[int64(height)] == nil {
-		k.ephemeral[int64(height)] = make(map[string]*types.Bundle)
+	if k.ephemeral[height] == nil {
+		k.ephemeral[height] = make(map[string]*types.Bundle)
 	}
 
-	k.ephemeral[int64(height)][bundle.ID()] = bundle
+	k.ephemeral[height][bundle.ID()] = bundle
 
 	if k.minHeight == -1 {
-		k.minHeight = int64(height)
+		k.minHeight = height
 	}
 
 	return true, nil
@@ -51,16 +51,16 @@ func (k *Keeper) AddBundles(height int64, bundles []*types.Bundle) (bool, error)
 	k.ephemeralMu.Lock()
 	defer k.ephemeralMu.Unlock()
 
-	if k.ephemeral[int64(height)] == nil {
-		k.ephemeral[int64(height)] = make(map[string]*types.Bundle)
+	if k.ephemeral[height] == nil {
+		k.ephemeral[height] = make(map[string]*types.Bundle)
 	}
 
 	for _, bundle := range bundles {
-		k.ephemeral[int64(height)][bundle.ID()] = bundle
+		k.ephemeral[height][bundle.ID()] = bundle
 	}
 
 	if k.minHeight == -1 {
-		k.minHeight = int64(height)
+		k.minHeight = height
 	}
 
 	return true, nil

@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"plugin"
 	"strings"
 	"sync"
 	"time"
@@ -114,7 +113,6 @@ import (
 	"github.com/sei-protocol/sei-chain/app/upgrades"
 	v0upgrade "github.com/sei-protocol/sei-chain/app/upgrades/v0"
 	"github.com/sei-protocol/sei-chain/evmrpc"
-	"github.com/sei-protocol/sei-chain/mev"
 	"github.com/sei-protocol/sei-chain/precompiles"
 	"github.com/sei-protocol/sei-chain/utils"
 	"github.com/sei-protocol/sei-chain/utils/metrics"
@@ -237,8 +235,8 @@ var (
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner},
 		tokenfactorytypes.ModuleName:   {authtypes.Minter, authtypes.Burner},
 		// Confidential Transfers module is not live yet, but we add the permissions for testing
-		cttypes.ModuleName: 			nil,
-		mevtypes.ModuleName:            nil,
+		cttypes.ModuleName:  nil,
+		mevtypes.ModuleName: nil,
 		// this line is used by starport scaffolding # stargate/app/maccPerms
 	}
 
@@ -397,7 +395,7 @@ type App struct {
 
 	forkInitializer func(sdk.Context)
 
-	mevHandler mev.MEVHandler
+	mevHandler mevbase.MEVHandler
 }
 
 type AppOption func(*App)
@@ -689,19 +687,19 @@ func New(
 	check(err, "reading genesis import config")
 	app.genesisImportConfig = genesisImportConfig
 
-	mevConfig, err := mev.ReadMevConfig(appOpts)
-	check(err, "reading mev config")
-	if mevConfig.HandlerPluginPath != "" {
-		p, err := plugin.Open(mevConfig.HandlerPluginPath)
-		check(err, "loading mev plugin")
-		h, err := p.Lookup(mev.PluginObjectName)
-		check(err, "looking up mev handler")
-		typedHandler, ok := h.(mev.MEVHandler)
-		if !ok {
-			panic("MEV handler does not implement MEVHandler interface")
-		}
-		app.mevHandler = typedHandler
-	}
+	//mevConfig, err := mev.ReadMevConfig(appOpts)
+	//check(err, "reading mev config")
+	//if mevConfig.HandlerPluginPath != "" {
+	//	p, err := plugin.Open(mevConfig.HandlerPluginPath)
+	//	check(err, "loading mev plugin")
+	//	h, err := p.Lookup(mev.PluginObjectName)
+	//	check(err, "looking up mev handler")
+	//	typedHandler, ok := h.(mev.MEVHandler)
+	//	if !ok {
+	//		panic("MEV handler does not implement MEVHandler interface")
+	//	}
+	//	app.mevHandler = typedHandler
+	//}
 
 	customDependencyGenerators := aclmapping.NewCustomDependencyGenerator()
 	aclOpts = append(aclOpts, aclkeeper.WithResourceTypeToStoreKeyMap(aclutils.ResourceTypeToStoreKeyMap))
