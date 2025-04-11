@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-const pollInterval = 200 * time.Millisecond
-
 type Poller struct {
 	client            types.BundleProviderClient
 	keeper            *Keeper
@@ -38,7 +36,7 @@ func NewPoller(logger log.Logger, config Config, keeper *Keeper, ctx context.Con
 
 	logger.Info("Starting bundle provider poller")
 
-	// TODO secure grpc connection
+	// TODO security options?
 	grpcConn, err := grpc.DialContext(context.Background(), config.ServerAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -54,7 +52,7 @@ func NewPoller(logger log.Logger, config Config, keeper *Keeper, ctx context.Con
 		ctx:               ctx,
 	}
 
-	ticker := time.NewTicker(pollInterval)
+	ticker := time.NewTicker(config.PollInterval)
 
 	go func() {
 		for {

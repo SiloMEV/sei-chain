@@ -1172,6 +1172,14 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Get all pending bundles for this height
 	ctx.Logger().Debug("Preparing proposal", "height", ctx.BlockHeight())
 
+	if !app.mevConfig.Enabled {
+		return &abci.ResponsePrepareProposal{
+			TxRecords: utils.Map(req.Txs, func(tx []byte) *abci.TxRecord {
+				return &abci.TxRecord{Action: abci.TxRecord_UNMODIFIED, Tx: tx}
+			}),
+		}, nil
+	}
+
 	bundles := app.MevKeeper.PendingBundles(ctx.BlockHeight())
 
 	if len(bundles) > 0 {
@@ -1183,6 +1191,8 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 
 	var selectedTxsTotalSize = int64(0)
 	var remainingTxs [][]byte
+	// map tx hash to index in remainingTxs
+	var remainingTxsMap = make(map[string]int)
 
 	// First, add any system transactions (governance, etc.)
 	for _, tx := range req.Txs {
@@ -1195,6 +1205,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 			selectedTxsTotalSize += int64(len(tx))
 		} else {
 			remainingTxs = append(remainingTxs, tx)
+			remainingTxsMap[string(tx)] = len(remainingTxs) - 1
 		}
 	}
 
@@ -1219,6 +1230,13 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 					Action: abci.TxRecord_UNMODIFIED,
 					Tx:     tx,
 				})
+
+				//remove tx from remaining if it was already in a bundle
+				index, has := remainingTxsMap[string(tx)]
+				if has {
+					remainingTxs = append(remainingTxs[:index], remainingTxs[index+1:]...)
+					delete(remainingTxsMap, string(tx))
+				}
 			}
 			selectedTxsTotalSize += bundleSize
 		}
