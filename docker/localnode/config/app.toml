@@ -270,11 +270,5 @@ ss-import-num-workers = 1
 enable_test_api = true
 
 [mev]
-handler_plugin_path = "/sei-protocol/mev/mev.so"
-
-[mev]
-
-listen_addr = ":22137"
-
-# Disable MEV by default
+enabled = false
 server_addr = ""

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	types2 "github.com/m4ksio/silo-mev-protobuf-go/mev/v1"
+	types2 "github.com/SiloMEV/silo-mev-protobuf-go/mev/v1"
 	"math"
 	"math/big"
 	"reflect"

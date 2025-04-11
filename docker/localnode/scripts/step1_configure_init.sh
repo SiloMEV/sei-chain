@@ -69,6 +69,7 @@ sed -i.bak -e "s|^validator *=.*|validator = \"$SEIVALOPER_INFO\"|" $ORACLE_CONF
 
 # Override MEV server address
 echo "Setting MEV server address to $MEV_SERVER_ADDR"
+sed -i'' -e 's/enabled = false/enabled = true/g' "$APP_CONFIG_FILE"
 sed -i'' -e 's/server_addr = ""/server_addr = "'"$MEV_SERVER_ADDR"'"/g' "$APP_CONFIG_FILE"
 
 

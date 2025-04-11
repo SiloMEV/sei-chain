@@ -127,6 +127,10 @@ github.com/OpenPeeDeeP/depguard v1.1.0/go.mod h1:JtAMzWkmFEzDPyAd+W0NHl1lvpQKTvT
 github.com/Shopify/goreferrer v0.0.0-20181106222321-ec9c9a553398/go.mod h1:a1uqRtAwp2Xwc6WNPJEufxJ7fx3npB4UV/JOLmbu5I0=
 github.com/Shopify/sarama v1.19.0/go.mod h1:FVkBWblsNy7DGZRfXLU0O9RCGt5g3g3yEuWXgklEdEo=
 github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMxUHB2q5Ap20/P/eIdh4G0pI=
+github.com/SiloMEV/sei-tendermint-prepare-fixed v0.0.0-20250410225018-6ec0a8f12b59 h1:a5A98cJF8hYSm8pi2HbAoOe8D/971ioqgahnYzXLE7E=
+github.com/SiloMEV/sei-tendermint-prepare-fixed v0.0.0-20250410225018-6ec0a8f12b59/go.mod h1:4LSlJdhl3nf3OmohliwRNUFLOB1XWlrmSodrIP7fLh4=
+github.com/SiloMEV/silo-mev-protobuf-go v0.0.3 h1:4AaW6GIoisvA50Y4wYkri0f/Wu7SG9NHAu9+fGikdxQ=
+github.com/SiloMEV/silo-mev-protobuf-go v0.0.3/go.mod h1:i6u6A6gne3TRJOqGvkJksK45DsZoK1q5+e2nw4RQ9Z8=
 github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDOSA=
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/VictoriaMetrics/fastcache v1.12.1 h1:i0mICQuojGDL3KblA7wUNlY5lOK6a4bwt3uRKnkZU40=
@@ -991,8 +995,6 @@ github.com/linxGnu/grocksdb v1.8.4/go.mod h1:xZCIb5Muw+nhbDK4Y5UJuOrin5MceOuiXkV
 github.com/lucasjones/reggen v0.0.0-20180717132126-cdb49ff09d77/go.mod h1:5ELEyG+X8f+meRWHuqUOewBOhvHkl7M76pdGEansxW4=
 github.com/lufeee/execinquery v1.0.0 h1:1XUTuLIVPDlFvUU3LXmmZwHDsolsxXnY67lzhpeqe0I=
 github.com/lufeee/execinquery v1.0.0/go.mod h1:EC7DrEKView09ocscGHC+apXMIaorh4xqSxS/dy8SbM=
-github.com/m4ksio/silo-mev-protobuf-go v0.0.2 h1:C2Yd+dRGKd7ojAUfntkNKJiPlnsiaIyYyeB0zhmwuR4=
-github.com/m4ksio/silo-mev-protobuf-go v0.0.2/go.mod h1:IWJMf438BxS+KZkFtqPsCCXKilFUGhB4V+c9ZB6nWQw=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/magiconair/properties v1.8.6 h1:5ibWZ6iY0NctNGWo87LalDlEZ6R41TqbbDamhfG/Qzo=
 github.com/magiconair/properties v1.8.6/go.mod h1:y3VJvCyxH9uVvJTWEGAELF3aiYNyPKd5NZ3oSwXrF60=
@@ -1370,8 +1372,6 @@ github.com/sei-protocol/sei-iavl v0.2.0 h1:OisPjXiDT+oe+aeckzDEFgkZCYuUjHgs/PP8D
 github.com/sei-protocol/sei-iavl v0.2.0/go.mod h1:qRf8QYUPfrAO7K6VDB2B2l/N7K5L76OorioGBcJBIbw=
 github.com/sei-protocol/sei-ibc-go/v3 v3.3.5 h1:SQRzWi9KSMuGNGd3f5RWAmsGGk7yeY1zhnEnrr/nqug=
 github.com/sei-protocol/sei-ibc-go/v3 v3.3.5/go.mod h1:VwB/vWu4ysT5DN2aF78d17LYmx3omSAdq6gpKvM7XRA=
-github.com/sei-protocol/sei-tendermint v0.5.4 h1:4yHUb83jQHfZn5hjfB5XcSgGQJkhl4QZYdVMGXkFp5o=
-github.com/sei-protocol/sei-tendermint v0.5.4/go.mod h1:4LSlJdhl3nf3OmohliwRNUFLOB1XWlrmSodrIP7fLh4=
 github.com/sei-protocol/sei-tm-db v0.0.5 h1:3WONKdSXEqdZZeLuWYfK5hP37TJpfaUa13vAyAlvaQY=
 github.com/sei-protocol/sei-tm-db v0.0.5/go.mod h1:Cpa6rGyczgthq7/0pI31jys2Fw0Nfrc+/jKdP1prVqY=
 github.com/sei-protocol/sei-wasmd v0.3.0 h1:IJabKisvmsstAPsVAk37HxVyQwAe36g1CNYM/QcPisc=

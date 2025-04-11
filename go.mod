@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/CosmWasm/wasmd v0.27.0
 	github.com/CosmWasm/wasmvm v1.5.4
+	github.com/SiloMEV/silo-mev-protobuf-go v0.0.3
 	github.com/armon/go-metrics v0.4.1
 	github.com/btcsuite/btcd v0.22.1
 	github.com/coinbase/kryptology v1.8.0
@@ -26,7 +27,6 @@ require (
 	github.com/holiman/uint256 v1.2.4
 	github.com/justinas/alice v1.2.0
 	github.com/k0kubun/pp/v3 v3.2.0
-	github.com/m4ksio/silo-mev-protobuf-go v0.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.7
@@ -366,7 +366,7 @@ replace (
 	github.com/sei-protocol/sei-db => github.com/sei-protocol/sei-db v0.0.48
 	// Latest goleveldb is broken, we have to stick to this version
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/sei-protocol/sei-tendermint v0.5.4
+	github.com/tendermint/tendermint => github.com/SiloMEV/sei-tendermint-prepare-fixed v0.0.0-20250410225018-6ec0a8f12b59
 	github.com/tendermint/tm-db => github.com/sei-protocol/tm-db v0.0.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )

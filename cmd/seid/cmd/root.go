@@ -430,7 +430,7 @@ func initAppConfig() (string, interface{}) {
 
 		LightInvariance app.LightInvarianceConfig `mapstructure:"light_invariance"`
 
-		MEV mev.MEVConfig `mapstructure:"mev"`
+		MEV mev.Config `mapstructure:"mev"`
 	}
 
 	// Optionally allow the chain developer to overwrite the SDK's default
@@ -475,7 +475,7 @@ func initAppConfig() (string, interface{}) {
 		ETHBlockTest:    blocktest.DefaultConfig,
 		EvmQuery:        querier.DefaultConfig,
 		LightInvariance: app.DefaultLightInvarianceConfig,
-		MEV:             mev.DefaultMEVConfig,
+		MEV:             mev.DefaultConfig,
 	}
 
 	customAppTemplate := serverconfig.DefaultConfigTemplate + `
@@ -573,7 +573,7 @@ evm_query_gas_limit = {{ .EvmQuery.GasLimit }}
 supply_enabled = {{ .LightInvariance.SupplyEnabled }}
 
 [mev]
-handler_plugin_path = "{{ .MEV.HandlerPluginPath }}"
+enabled = "{{ .MEV.Enabled }}"
 `
 
 	return customAppTemplate, customAppConfig

@@ -394,8 +394,6 @@ type App struct {
 	receiptStore seidb.StateStore
 
 	forkInitializer func(sdk.Context)
-
-	mevHandler mevbase.MEVHandler
 }
 
 type AppOption func(*App)
@@ -1986,7 +1984,7 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 	tmservice.RegisterTendermintService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
 
 	if app.evmRPCConfig.HTTPEnabled {
-		evmHTTPServer, err := evmrpc.NewEVMHTTPServer(app.Logger(), app.evmRPCConfig, clientCtx.Client, &app.EvmKeeper, app.BaseApp, app.AnteHandler, app.RPCContextProvider, app.encodingConfig.TxConfig, DefaultNodeHome, nil, app.mevHandler)
+		evmHTTPServer, err := evmrpc.NewEVMHTTPServer(app.Logger(), app.evmRPCConfig, clientCtx.Client, &app.EvmKeeper, app.BaseApp, app.AnteHandler, app.RPCContextProvider, app.encodingConfig.TxConfig, DefaultNodeHome, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -2005,7 +2003,7 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 		}
 	}
 
-	if app.mevConfig.ServerAddr != "" {
+	if app.mevConfig.Enabled {
 		_, err := mevbase.NewPoller(app.Logger(), app.mevConfig, app.MevKeeper, app.GetCheckCtx().Context(), app.LastBlockHeight)
 		if err != nil {
 			panic(err)

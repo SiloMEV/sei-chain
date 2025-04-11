@@ -1,7 +1,7 @@
 package mev
 
 import (
-	types "github.com/m4ksio/silo-mev-protobuf-go/mev/v1"
+	types "github.com/SiloMEV/silo-mev-protobuf-go/mev/v1"
 	"sync"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -13,7 +13,7 @@ type Keeper struct {
 	ephemeralMu sync.Mutex
 
 	// TODO rethink pointers
-	// block heigh -> bundleID -> bundle
+	// block height -> bundleID -> bundle
 	ephemeral map[int64]map[string]*types.Bundle
 	minHeight int64
 }

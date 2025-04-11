@@ -2,7 +2,7 @@ package mev
 
 import (
 	"context"
-	types "github.com/m4ksio/silo-mev-protobuf-go/mev/v1"
+	types "github.com/SiloMEV/silo-mev-protobuf-go/mev/v1"
 	"github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
 	"time"

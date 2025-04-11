@@ -1,7 +1,7 @@
 package mev_test
 
 import (
-	types "github.com/m4ksio/silo-mev-protobuf-go/mev/v1"
+	types "github.com/SiloMEV/silo-mev-protobuf-go/mev/v1"
 	"testing"
 	"time"
 
