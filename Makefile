@@ -53,6 +53,12 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=sei \
 			-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
 			-X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)"
 
+# go 1.23+ needs a workaround to link memsize (see https://github.com/fjl/memsize).
+# NOTE: this is a terribly ugly and unstable way of comparing version numbers,
+# but that's what you get when you do anything nontrivial in a Makefile.
+ifeq ($(firstword $(sort go1.23 $(shell go env GOVERSION))), go1.23)
+	ldflags += -checklinkname=0
+endif
 ifeq ($(LINK_STATICALLY),true)
 	ldflags += -linkmode=external -extldflags "-Wl,-z,muldefs -static"
 endif
@@ -215,7 +221,7 @@ docker-cluster-stop:
 docker-mev-cluster-stop:
 	@cd docker && USERID=$(shell id -u) GROUPID=$(shell id -g) GOCACHE=$(shell go env GOCACHE) docker compose -f docker-compose.yml -f docker-compose.mev.yml down
 
-.PHONY: localnet-stop
+.PHONY: localnet-stop ddd
 
 
 # Implements test splitting and running. This is pulled directly from
@@ -238,4 +244,4 @@ $(BUILDDIR)/packages.txt:$(GO_TEST_FILES) $(BUILDDIR)
 split-test-packages:$(BUILDDIR)/packages.txt
 	split -d -n l/$(NUM_SPLIT) $< $<.
 test-group-%:split-test-packages
-	cat $(BUILDDIR)/packages.txt.$* | xargs go test -parallel 4 -mod=readonly -timeout=10m -race -coverprofile=$*.profile.out -covermode=atomic
+	cat $(BUILDDIR)/packages.txt.$* | xargs go test -parallel 4 -mod=readonly -timeout=15m -race -coverprofile=$*.profile.out -covermode=atomic
