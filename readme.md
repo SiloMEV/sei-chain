@@ -1,5 +1,7 @@
 # Sei
 
+Dummy clone to run CI on main
+
 ![Banner!](assets/SeiLogo.png)
 
 Sei is the fastest general purpose L1 blockchain and the first parallelized EVM. This allows Sei to get the best of Solana and Ethereum - a hyper optimized execution layer that benefits from the tooling and mindshare around the EVM.
