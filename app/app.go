@@ -1244,7 +1244,7 @@ func (app *App) mevPrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrep
 				Tx:     tx,
 			})
 			selectedTxsTotalSize += int64(len(tx))
-			if selectedTxsTotalSize >= maxTxBytes {
+			if selectedTxsTotalSize == maxTxBytes {
 				break
 			}
 		}
