@@ -2014,7 +2014,12 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 	}
 
 	if app.mevConfig.Enabled {
-		_, err := mevbase.NewPoller(app.GetCheckCtx().Context(), app.Logger(), app.mevConfig, app.MevKeeper, app.LastBlockHeight)
+		checkCtx := app.GetCheckCtx()
+
+		// This is really a bundle size sanity check, so half of max block size is enough
+		maxBundleSize := app.GetConsensusParams(checkCtx).Block.MaxBytes / 2
+
+		_, err := mevbase.NewPoller(checkCtx.Context(), app.Logger(), app.mevConfig, app.MevKeeper, app.LastBlockHeight, maxBundleSize)
 		if err != nil {
 			panic(err)
 		}
